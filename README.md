@@ -1,4 +1,4 @@
-# My Zerra
+# React Dev Template
 
 A modern full-stack React application built with [TanStack Start](https://tanstack.com/start), featuring a feature-based architecture, Tailwind CSS v4, shadcn/ui components, and a custom nature-inspired design system.
 
