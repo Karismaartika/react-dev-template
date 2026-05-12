@@ -1,0 +1,457 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import {
+  Building2,
+  CheckCircle2,
+  Mail,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react'
+
+export const Route = createFileRoute('/employee')({
+  component: EmployeePage,
+})
+
+/* =========================
+   TYPES
+========================= */
+
+type Company = {
+  id: number
+  name: string
+  legalName: string
+  address: string
+  email: string
+  phone: string
+  website: string
+  logo: string
+}
+
+type Employee = {
+  id: number
+  name: string
+  email: string
+  phone: string
+  companyId: number
+}
+
+/* =========================
+   COMPONENT
+========================= */
+
+function EmployeePage() {
+  const [search, setSearch] = useState('')
+
+  /* =========================
+     COMPANY DATA
+  ========================= */
+
+  const [companies, setCompanies] = useState<Company[]>([])
+
+  useEffect(() => {
+    const savedCompanies = localStorage.getItem('companies')
+
+    if (savedCompanies) {
+      setCompanies(JSON.parse(savedCompanies))
+    }
+  }, [])
+
+  /* =========================
+     EMPLOYEE DATA
+  ========================= */
+
+  const [employees, setEmployees] = useState<Employee[]>([
+    {
+      id: 1,
+      name: 'Kharisma Artika',
+      email: 'kharisma@gmail.com',
+      phone: '08123456789',
+      companyId: 1,
+    },
+  ])
+
+  /* =========================
+     FORM
+  ========================= */
+
+  const [form, setForm] = useState<Employee>({
+    id: 0,
+    name: '',
+    email: '',
+    phone: '',
+    companyId: 1,
+  })
+
+  const [isEdit, setIsEdit] = useState(false)
+
+  const [editId, setEditId] = useState<number | null>(null)
+
+  const [openModal, setOpenModal] = useState(false)
+
+  /* =========================
+     FILTER
+  ========================= */
+
+  const filteredData = employees.filter(
+    (emp) =>
+      emp.name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.email.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  /* =========================
+     HANDLE CHANGE
+  ========================= */
+
+  const handleChange = (
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target
+
+    setForm({
+      ...form,
+      [name]: name === 'companyId' ? Number(value) : value,
+    })
+  }
+
+  /* =========================
+     SUBMIT
+  ========================= */
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!form.name || !form.email || !form.phone) {
+      alert('Semua field wajib diisi')
+      return
+    }
+
+    if (isEdit && editId !== null) {
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === editId
+            ? {
+                ...form,
+                id: editId,
+              }
+            : emp,
+        ),
+      )
+    } else {
+      const newEmployee: Employee = {
+        ...form,
+        id: Date.now(),
+      }
+
+      setEmployees([...employees, newEmployee])
+    }
+
+    resetForm()
+  }
+
+  /* =========================
+     EDIT
+  ========================= */
+
+  const handleEdit = (emp: Employee) => {
+    setForm(emp)
+    setEditId(emp.id)
+    setIsEdit(true)
+    setOpenModal(true)
+  }
+
+  /* =========================
+     DELETE
+  ========================= */
+
+  const handleDelete = (id: number) => {
+    if (confirm('Apakah yakin ingin menghapus employee?')) {
+      setEmployees(employees.filter((emp) => emp.id !== id))
+    }
+  }
+
+  /* =========================
+     RESET FORM
+  ========================= */
+
+  const resetForm = () => {
+    setForm({
+      id: 0,
+      name: '',
+      email: '',
+      phone: '',
+      companyId: companies.length > 0 ? companies[0].id : 1,
+    })
+
+    setIsEdit(false)
+    setEditId(null)
+    setOpenModal(false)
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-800">
+              Employee Management
+            </h1>
+
+            <p className="text-slate-500 mt-1">
+              Manage employee & company data
+            </p>
+          </div>
+
+          <button
+            onClick={() => setOpenModal(true)}
+            className="bg-sky-600 hover:bg-sky-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2 shadow-lg transition-all"
+          >
+            <Plus size={18} />
+            Add Employee
+          </button>
+        </div>
+
+        {/* CARD */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* TOPBAR */}
+          <div className="p-5 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* SEARCH */}
+            <div className="relative w-full md:w-96">
+              <Search
+                size={18}
+                className="absolute left-3 top-3 text-slate-400"
+              />
+
+              <input
+                type="text"
+                placeholder="Search employee..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-300 outline-none focus:ring-2 focus:ring-sky-500"
+              />
+            </div>
+
+            {/* TOTAL */}
+            <div className="bg-sky-50 text-sky-700 px-5 py-3 rounded-2xl font-bold">
+              Total Employee : {employees.length}
+            </div>
+          </div>
+
+          {/* TABLE */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="text-slate-600 text-sm">
+                  <th className="text-left px-6 py-4 font-bold">Employee</th>
+
+                  <th className="text-left px-6 py-4 font-bold">Contact</th>
+
+                  <th className="text-left px-6 py-4 font-bold">Company</th>
+
+                  <th className="text-center px-6 py-4 font-bold">Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredData.map((emp) => (
+                  <tr
+                    key={emp.id}
+                    className="border-b border-slate-100 hover:bg-slate-50 transition-all"
+                  >
+                    {/* EMPLOYEE */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center">
+                          <Users className="text-sky-600" size={20} />
+                        </div>
+
+                        <div>
+                          <h2 className="font-bold text-slate-800">
+                            {emp.name}
+                          </h2>
+
+                          <p className="text-sm text-slate-500">EMP-{emp.id}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* CONTACT */}
+                    <td className="px-6 py-5">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Mail size={15} />
+                          {emp.email}
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Phone size={15} />
+                          {emp.phone}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* COMPANY */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-2 text-slate-700 font-medium">
+                        <Building2 size={16} />
+
+                        {
+                          companies.find((c) => c.id === emp.companyId)
+                            ?.legalName
+                        }
+                      </div>
+                    </td>
+
+                    {/* ACTION */}
+                    <td className="px-6 py-5">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(emp)}
+                          className="p-2 rounded-xl bg-amber-100 text-amber-600 hover:scale-105 transition-all"
+                        >
+                          <Pencil size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(emp.id)}
+                          className="p-2 rounded-xl bg-red-100 text-red-600 hover:scale-105 transition-all"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAL */}
+      {openModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden">
+            {/* HEADER */}
+            <div className="flex items-center justify-between px-6 py-5 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">
+                  {isEdit ? 'Edit Employee' : 'Add Employee'}
+                </h2>
+
+                <p className="text-slate-500 text-sm mt-1">
+                  Input employee information
+                </p>
+              </div>
+
+              <button
+                onClick={resetForm}
+                className="p-2 rounded-xl hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* FORM */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {/* NAME */}
+              <div>
+                <label className="text-sm font-semibold text-slate-600">
+                  Employee Name
+                </label>
+
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Input employee name"
+                  className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* EMAIL */}
+              <div>
+                <label className="text-sm font-semibold text-slate-600">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="Input email"
+                  className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* PHONE */}
+              <div>
+                <label className="text-sm font-semibold text-slate-600">
+                  Phone
+                </label>
+
+                <input
+                  type="text"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="Input phone"
+                  className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* COMPANY */}
+              <div>
+                <label className="text-sm font-semibold text-slate-600">
+                  Company
+                </label>
+
+                <select
+                  name="companyId"
+                  value={form.companyId}
+                  onChange={handleChange}
+                  className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.legalName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* BUTTON */}
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-5 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 font-bold text-slate-700"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="px-5 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold flex items-center gap-2"
+                >
+                  <CheckCircle2 size={18} />
+
+                  {isEdit ? 'Save Changes' : 'Save Employee'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

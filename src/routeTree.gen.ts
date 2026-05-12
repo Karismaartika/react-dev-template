@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as RegisterRouteImport } from './routes/register'
 import { Route as QuotationRouteImport } from './routes/quotation'
+import { Route as EmployeeRouteImport } from './routes/employee'
+import { Route as CompanyRouteImport } from './routes/company'
+import { Route as BankAccountRouteImport } from './routes/bank-account'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
@@ -18,14 +20,24 @@ import { Route as DemoTableRouteImport } from './routes/demo/table'
 import { Route as DemoFormSimpleRouteImport } from './routes/demo/form.simple'
 import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
 
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const QuotationRoute = QuotationRouteImport.update({
   id: '/quotation',
   path: '/quotation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmployeeRoute = EmployeeRouteImport.update({
+  id: '/employee',
+  path: '/employee',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompanyRoute = CompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BankAccountRoute = BankAccountRouteImport.update({
+  id: '/bank-account',
+  path: '/bank-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -62,8 +74,10 @@ const DemoFormAddressRoute = DemoFormAddressRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bank-account': typeof BankAccountRoute
+  '/company': typeof CompanyRoute
+  '/employee': typeof EmployeeRoute
   '/quotation': typeof QuotationRoute
-  '/register': typeof RegisterRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -72,8 +86,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bank-account': typeof BankAccountRoute
+  '/company': typeof CompanyRoute
+  '/employee': typeof EmployeeRoute
   '/quotation': typeof QuotationRoute
-  '/register': typeof RegisterRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -83,8 +99,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/bank-account': typeof BankAccountRoute
+  '/company': typeof CompanyRoute
+  '/employee': typeof EmployeeRoute
   '/quotation': typeof QuotationRoute
-  '/register': typeof RegisterRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/form/address': typeof DemoFormAddressRoute
@@ -95,8 +113,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/bank-account'
+    | '/company'
+    | '/employee'
     | '/quotation'
-    | '/register'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -105,8 +125,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/bank-account'
+    | '/company'
+    | '/employee'
     | '/quotation'
-    | '/register'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -115,8 +137,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/bank-account'
+    | '/company'
+    | '/employee'
     | '/quotation'
-    | '/register'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/demo/form/address'
@@ -126,8 +150,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  BankAccountRoute: typeof BankAccountRoute
+  CompanyRoute: typeof CompanyRoute
+  EmployeeRoute: typeof EmployeeRoute
   QuotationRoute: typeof QuotationRoute
-  RegisterRoute: typeof RegisterRoute
   DemoTableRoute: typeof DemoTableRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoFormAddressRoute: typeof DemoFormAddressRoute
@@ -136,18 +162,32 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/quotation': {
       id: '/quotation'
       path: '/quotation'
       fullPath: '/quotation'
       preLoaderRoute: typeof QuotationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/employee': {
+      id: '/employee'
+      path: '/employee'
+      fullPath: '/employee'
+      preLoaderRoute: typeof EmployeeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/company': {
+      id: '/company'
+      path: '/company'
+      fullPath: '/company'
+      preLoaderRoute: typeof CompanyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bank-account': {
+      id: '/bank-account'
+      path: '/bank-account'
+      fullPath: '/bank-account'
+      preLoaderRoute: typeof BankAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -198,8 +238,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  BankAccountRoute: BankAccountRoute,
+  CompanyRoute: CompanyRoute,
+  EmployeeRoute: EmployeeRoute,
   QuotationRoute: QuotationRoute,
-  RegisterRoute: RegisterRoute,
   DemoTableRoute: DemoTableRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoFormAddressRoute: DemoFormAddressRoute,
