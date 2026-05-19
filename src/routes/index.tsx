@@ -1,14 +1,61 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import api from '../services/api'
 
 export const Route = createFileRoute('/')({
   component: DashboardPage,
 })
 
 function DashboardPage() {
+  const [companies, setCompanies] = useState([])
+  const [employees, setEmployees] = useState([])
+  const [banks, setBanks] = useState([])
+
+  useEffect(() => {
+    // GET COMPANIES
+    api
+      .get('/companies')
+      .then((res) => {
+        console.log('COMPANIES:')
+        console.log(res.data)
+
+        setCompanies(res.data.data)
+      })
+      .catch((err) => {
+        console.log(err)
+      })
+
+    // GET EMPLOYEES
+    api
+      .get('/employees')
+      .then((res) => {
+        console.log('EMPLOYEES:')
+        console.log(res.data)
+
+        setEmployees(res.data.data)
+      })
+      .catch((err) => {
+        console.log(err)
+      })
+
+    // GET BANK ACCOUNTS
+    api
+      .get('/bank_accounts')
+      .then((res) => {
+        console.log('BANKS:')
+        console.log(res.data)
+
+        setBanks(res.data.data)
+      })
+      .catch((err) => {
+        console.log(err)
+      })
+  }, [])
+
   const stats = [
     {
       title: 'Company',
-      value: 3,
+      value: companies.length,
       icon: '🏢',
       color: '#0ea5e9',
       bg: '#e0f2fe',
@@ -16,7 +63,7 @@ function DashboardPage() {
     },
     {
       title: 'Employee',
-      value: 5,
+      value: employees.length,
       icon: '👨‍💼',
       color: '#22c55e',
       bg: '#dcfce7',
@@ -24,7 +71,7 @@ function DashboardPage() {
     },
     {
       title: 'Bank Account',
-      value: 2,
+      value: banks.length,
       icon: '🏦',
       color: '#f97316',
       bg: '#ffedd5',
@@ -44,11 +91,19 @@ function DashboardPage() {
     <div style={{ padding: 24 }}>
       {/* HEADER */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800 }}>Dashboard</h1>
+        <h1
+          style={{
+            fontSize: 32,
+            fontWeight: 800,
+          }}
+        >
+          Dashboard
+        </h1>
+
         <p style={{ color: '#64748b' }}>Welcome to Zerra ERP Dashboard 🚀</p>
       </div>
 
-      {/* 🔥 HERO */}
+      {/* HERO */}
       <div
         style={{
           background: 'linear-gradient(135deg,#0ea5e9,#2563eb)',
@@ -59,12 +114,13 @@ function DashboardPage() {
         }}
       >
         <h2 style={{ margin: 0 }}>Zerra ERP Control Panel</h2>
+
         <p style={{ marginTop: 8 }}>
           Manage company, employee, bank & quotation easily
         </p>
       </div>
 
-      {/* CARD */}
+      {/* STATS */}
       <div
         style={{
           display: 'grid',
@@ -81,7 +137,6 @@ function DashboardPage() {
               padding: 20,
               boxShadow: '0 6px 18px rgba(0,0,0,0.06)',
               border: '1px solid #e2e8f0',
-              transition: '0.3s',
             }}
           >
             {/* TOP */}
@@ -146,6 +201,54 @@ function DashboardPage() {
             >
               Open Page
             </Link>
+          </div>
+        ))}
+      </div>
+
+      {/* EMPLOYEE DATA */}
+      <div style={{ marginTop: 40 }}>
+        <h2 style={{ marginBottom: 20 }}>Employee Data</h2>
+
+        {employees.map((item: any) => (
+          <div
+            key={item.id}
+            style={{
+              background: 'white',
+              padding: 20,
+              borderRadius: 16,
+              marginBottom: 12,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            }}
+          >
+            <h3>{item.name}</h3>
+
+            <p>{item.email}</p>
+
+            <p>{item.phone}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* BANK DATA */}
+      <div style={{ marginTop: 40 }}>
+        <h2 style={{ marginBottom: 20 }}>Bank Accounts</h2>
+
+        {banks.map((item: any) => (
+          <div
+            key={item.id}
+            style={{
+              background: 'white',
+              padding: 20,
+              borderRadius: 16,
+              marginBottom: 12,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            }}
+          >
+            <h3>{item.bank_name}</h3>
+
+            <p>{item.account_name}</p>
+
+            <p>{item.account_number}</p>
           </div>
         ))}
       </div>
