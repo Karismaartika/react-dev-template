@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as QuotationRouteImport } from './routes/quotation'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as EmployeeRouteImport } from './routes/employee'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as BankAccountRouteImport } from './routes/bank-account'
@@ -23,6 +24,11 @@ import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
 const QuotationRoute = QuotationRouteImport.update({
   id: '/quotation',
   path: '/quotation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployeeRoute = EmployeeRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/bank-account': typeof BankAccountRoute
   '/company': typeof CompanyRoute
   '/employee': typeof EmployeeRoute
+  '/login': typeof LoginRoute
   '/quotation': typeof QuotationRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/bank-account': typeof BankAccountRoute
   '/company': typeof CompanyRoute
   '/employee': typeof EmployeeRoute
+  '/login': typeof LoginRoute
   '/quotation': typeof QuotationRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/bank-account': typeof BankAccountRoute
   '/company': typeof CompanyRoute
   '/employee': typeof EmployeeRoute
+  '/login': typeof LoginRoute
   '/quotation': typeof QuotationRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/bank-account'
     | '/company'
     | '/employee'
+    | '/login'
     | '/quotation'
     | '/demo/table'
     | '/demo/tanstack-query'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/bank-account'
     | '/company'
     | '/employee'
+    | '/login'
     | '/quotation'
     | '/demo/table'
     | '/demo/tanstack-query'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/bank-account'
     | '/company'
     | '/employee'
+    | '/login'
     | '/quotation'
     | '/demo/table'
     | '/demo/tanstack-query'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   BankAccountRoute: typeof BankAccountRoute
   CompanyRoute: typeof CompanyRoute
   EmployeeRoute: typeof EmployeeRoute
+  LoginRoute: typeof LoginRoute
   QuotationRoute: typeof QuotationRoute
   DemoTableRoute: typeof DemoTableRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/quotation'
       fullPath: '/quotation'
       preLoaderRoute: typeof QuotationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employee': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   BankAccountRoute: BankAccountRoute,
   CompanyRoute: CompanyRoute,
   EmployeeRoute: EmployeeRoute,
+  LoginRoute: LoginRoute,
   QuotationRoute: QuotationRoute,
   DemoTableRoute: DemoTableRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,

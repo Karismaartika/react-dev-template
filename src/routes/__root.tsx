@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
+  redirect,
   useRouterState,
 } from '@tanstack/react-router'
 
@@ -15,6 +16,27 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  beforeLoad: ({ location }) => {
+    // saat SSR jangan akses localStorage
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const isLogin = localStorage.getItem('loggedIn')
+
+    // biarkan halaman login bisa diakses
+    if (location.pathname === '/login') {
+      return
+    }
+
+    // redirect kalau belum login
+    if (!isLogin) {
+      throw redirect({
+        to: '/login',
+      })
+    }
+  },
+
   component: RootLayout,
 })
 
