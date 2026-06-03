@@ -193,6 +193,31 @@ function QuotationPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 p-6 print:bg-white print:p-0">
+      {/* Mantra CSS khusus cetak agar menutupi navbar bawaan layout layout utama */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #print-area, #print-area * {
+            visibility: visible !important;
+          }
+          #print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+          }
+          html, body {
+            background-color: #fff !important;
+          }
+        }
+      `}</style>
+
       {/* FORM */}
       <div className="bg-white rounded-3xl shadow-sm border p-6 mb-6 print:hidden">
         <div className="flex items-center gap-2 mb-6">
@@ -410,7 +435,7 @@ function QuotationPage() {
         <div className="mt-8 flex justify-end">
           <button
             onClick={handlePrint}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 shadow-lg"
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 shadow-lg transition-all"
           >
             <Printer size={18} />
             Print PDF
@@ -422,17 +447,17 @@ function QuotationPage() {
       <div
         id="print-area"
         className="
-    bg-white
-    max-w-[850px]
-    mx-auto
-    p-6
-    text-[12px]
-    text-black
-    leading-tight
-    print:max-w-full
-    print:shadow-none
-    print:p-4
-  "
+          bg-white
+          max-w-[850px]
+          mx-auto
+          p-6
+          text-[12px]
+          text-black
+          leading-tight
+          print:max-w-full
+          print:shadow-none
+          print:p-4
+        "
       >
         {/* HEADER */}
         <div className="flex justify-between items-start border-b pb-3">
