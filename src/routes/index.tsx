@@ -13,17 +13,11 @@ function DashboardPage() {
 
   useEffect(() => {
     // GET COMPANIES
-    api
-      .get('/companies')
-      .then((res) => {
-        console.log('COMPANIES:')
-        console.log(res.data)
+    const savedCompanies = localStorage.getItem('companies')
 
-        setCompanies(res.data.data)
-      })
-      .catch((err) => {
-        console.log(err)
-      })
+    if (savedCompanies) {
+      setCompanies(JSON.parse(savedCompanies))
+    }
 
     // GET EMPLOYEES
     api
@@ -106,7 +100,7 @@ function DashboardPage() {
       {/* HERO */}
       <div
         style={{
-          background: 'linear-gradient(135deg,#0ea5e9,#2563eb)',
+          background: 'linear-gradient(135deg,#1e3a8a,#1e40af)',
           borderRadius: 20,
           padding: 24,
           color: 'white',

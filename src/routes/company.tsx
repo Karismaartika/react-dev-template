@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Building2,
   Globe,
@@ -52,7 +52,9 @@ function CompanyPage() {
       logo: '/logo-cm.png',
     },
   ])
-
+  useEffect(() => {
+    localStorage.setItem('companies', JSON.stringify(companies))
+  }, [companies])
   // ================= FORM =================
   const [form, setForm] = useState<Company>({
     id: 0,

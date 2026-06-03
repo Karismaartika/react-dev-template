@@ -89,7 +89,9 @@ function RootLayout() {
             <div
               style={{
                 width: 220,
-                background: darkMode ? '#334155' : '#0ea5e9',
+                background: darkMode
+                  ? '#334155'
+                  : 'linear-gradient(180deg,#1e3a8a,#1e40af)',
                 color: 'white',
                 padding: 18,
                 transition: '0.3s',
@@ -127,7 +129,9 @@ function RootLayout() {
               {/* MENU */}
               {menu.map((m) => {
                 const active =
-                  m.path === '/' ? pathname === '/' : pathname.startsWith(m.path)
+                  m.path === '/'
+                    ? pathname === '/'
+                    : pathname.startsWith(m.path)
 
                 return (
                   <Link
@@ -141,7 +145,7 @@ function RootLayout() {
                       marginTop: 10,
                       borderRadius: 16,
                       background: active ? 'white' : 'transparent',
-                      color: active ? '#0ea5e9' : 'white',
+                      color: active ? '#1e3a8a' : 'white',
                       textDecoration: 'none',
                       fontWeight: 600,
                       transition: '0.2s',
@@ -198,25 +202,6 @@ function RootLayout() {
                     gap: 12,
                   }}
                 >
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-                    }}
-                  >
-                    <img
-                      src="https://ui-avatars.com/api/?name=Karisma&background=0ea5e9&color=fff"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  </div>
-
                   <button
                     onClick={() => {
                       localStorage.removeItem('loggedIn')
