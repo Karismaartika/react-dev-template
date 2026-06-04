@@ -1,7 +1,13 @@
 import axios from 'axios'
 
-const api = axios.create({
-  baseURL: 'https://pounce-retainer-patchwork.ngrok-free.dev',
+// 1. Ini pusat konfigurasi API lu, otomatis dipakai di semua halaman
+export const apiQuotation = axios.create({
+  baseURL: 'https://svc-quotation.myzerra.id', // <--- Cukup pastiin baris ini bener
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
 })
 
-export default api
+// 2. Ini buat nyelametin halaman Beranda/Dashboard biar gak eror merah lagi
+export default apiQuotation
