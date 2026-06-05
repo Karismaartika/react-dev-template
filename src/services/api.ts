@@ -62,4 +62,47 @@ export const deleteBankAccount = async (id: string) => {
   return response.data
 }
 
+// =================================================================
+// 4. FUNGSI CRUD LOGISTIK COMPANY (BARU 🚀)
+// =================================================================
+export const getCompanies = async () => {
+  const response = await apiQuotation.get('/companies')
+  return response.data
+}
+
+export const createCompany = async (companyData: any) => {
+  const response = await apiQuotation.post('/companies', companyData)
+  return response.data
+}
+
+export const updateCompany = async (id: string | number, companyData: any) => {
+  const response = await apiQuotation.put(`/companies/${id}`, companyData)
+  return response.data
+}
+
+export const deleteCompany = async (id: string | number) => {
+  const response = await apiQuotation.delete(`/companies/${id}`)
+  return response.data
+}
+
+export const getEmployees = async () => {
+  const response = await apiQuotation.get('/employees')
+  return response.data
+}
+
+export const createEmployee = async (employeeData: any) => {
+  const response = await apiQuotation.post('/employees', employeeData)
+  return response.data
+}
+
+export const updateEmployee = async (id: string, employeeData: any) => {
+  const response = await apiQuotation.put(`/employees/${id}`, employeeData)
+  return response.data
+}
+
+export const deleteEmployee = async (id: string) => {
+  const response = await apiQuotation.delete(`/employees/${id}`)
+  return response.data
+}
+
 export default apiQuotation

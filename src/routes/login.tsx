@@ -9,66 +9,68 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const navigate = useNavigate()
 
-  const [username, setUsername] = useState('')
+  // Mengubah nama state menjadi email agar sesuai dengan fungsinya saat ini
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false) // State untuk mata password
-  const [isLoading, setIsLoading] = useState(false) // State untuk efek loading tombol
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // 🌐 1. Tetap mencoba menembak ke server AWS Linux milik Mentor
-      const response = await fetch('http://32.236.47.189:8090/v1/api/login', {
+      // 🌐 1. Tembak langsung ke endpoint login server produksi yang baru
+      const response = await fetch('https://svc-quotation.myzerra.id/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: username,
-          password: password,
+          email: email,       // 💡 Sesuai Swagger: Menggunakan key "email"
+          password: password, // Menggunakan key "password"
         }),
       })
+
+      // Jika server mengalami crash internal (Error 500)
+      if (response.status === 500) {
+        throw new Error('Server Backend mengalami internal error (500). Silakan hubungi tim Backend/Mentor.')
+      }
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.message || 'Username atau password salah!')
+        throw new Error(data.message || 'Email atau password salah!')
       }
 
-      // Jika AWS lancar, ambil token asli
-      const token = data.token || data.data?.token
+      // 💡 Sesuai Swagger: Mengambil data dari key "access_token"
+      const token = data.access_token
 
       if (token) {
-        localStorage.setItem('token', token)
+        // Pastikan token tersimpan menggunakan format standar Bearer
+        const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+
+        // Simpan token asli dari backend produksi secara otomatis ke Local Storage
+        localStorage.setItem('token', formattedToken)
         localStorage.setItem('loggedIn', 'true')
-        alert('Login Berhasil! Token asli AWS disimpan.')
+        
+        alert('Login Berhasil! Token asli produksi otomatis disimpan.')
         navigate({ to: '/' })
       } else {
-        alert('Login sukses, tetapi AWS tidak mengirimkan token akses.')
+        alert('Login sukses, tetapi struktur respons server tidak menyediakan access_token.')
       }
     } catch (error: any) {
-      // ⚡ 2. TRIK SAKTI BYPASS JIRA (Jika Server AWS memblokir / Failed to Fetch)
+      // ⚡ 2. MODE CADANGAN BYPASS JIRA (Hanya terpicu jika server MyZerra benar-benar offline/down)
       console.warn(
-        'Koneksi AWS diblokir/offline. Mengaktifkan mode aman lokal untuk Jira...',
+        'Koneksi server utama bermasalah atau data salah. Mengaktifkan mode aman lokal...',
         error,
       )
 
-      // Token Bearer tiruan yang rapi sesuai format standar JWT untuk bukti ke mentor
-      const tokenBypassJira =
-        'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im5hYmlsYSIsInJvbGUiOiJmcm9udGVuZCJ9.success123'
+      // Cetak detail error ke console agar kamu bisa memantau jika ada masalah validasi data
+      console.error('Detail login error:', error.message)
 
-      // TUGAS JIRA KAMU TERPENUHI DI SINI (Token masuk ke localStorage browser)
-      localStorage.setItem('token', tokenBypassJira)
-      localStorage.setItem('loggedIn', 'true')
-
-      alert(
-        'Login Sukses (Mode Jaringan AWS Offline). Token Bearer berhasil disimpan ke localStorage!',
-      )
-
-      // Alihkan paksa halaman ke Dashboard utama agar kamu bisa cek localStorage
-      navigate({ to: '/' })
+      // Pesan peringatan agar kamu tahu jika login gagal menembak server asli
+      alert(`Gagal Login ke Server Asli:\n${error.message || error}\n\nSilakan periksa kembali email & password, atau hubungi tim Backend.`);
     } finally {
       setIsLoading(false)
     }
@@ -109,10 +111,10 @@ function LoginPage() {
             </p>
 
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* Username Input */}
+              {/* Email Input */}
               <div>
                 <label className="block mb-2 text-sm font-medium text-slate-700">
-                  Username
+                  Email
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
@@ -127,15 +129,15 @@ function LoginPage() {
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+                        d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
                       />
                     </svg>
                   </div>
                   <input
-                    type="text"
-                    placeholder="Masukkan username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    placeholder="Masukkan email Anda"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-sm"
                     required
                     disabled={isLoading}

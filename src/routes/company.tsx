@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { apiQuotation } from '@/services/api' // Import instance API buatan lu
 
 export const Route = createFileRoute('/company')({
   component: CompanyPage,
@@ -30,31 +31,32 @@ type Company = {
 
 function CompanyPage() {
   // ================= COMPANY DATA =================
-  const [companies, setCompanies] = useState<Company[]>([
-    {
-      id: 1,
-      name: 'Zerra',
-      legalName: 'PT Zerra Teknologi',
-      address: 'Malang, Jawa Timur',
-      email: 'zerra@gmail.com',
-      phone: '08123456789',
-      website: 'https://myzerra.id',
-      logo: '/logo-zerra.png',
-    },
-    {
-      id: 2,
-      name: 'Cahaya Mustika',
-      legalName: 'CV Cahaya Mustika',
-      address: 'Malang, Jawa Timur',
-      email: 'cahayamustika@gmail.com',
-      phone: '08987654321',
-      website: 'https://cahayamustika.id',
-      logo: '/logo-cm.png',
-    },
-  ])
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  // --- Ambil Data dari API Backend ---
+  const fetchCompanies = async () => {
+    setIsLoading(true)
+    try {
+      const response = await apiQuotation.get('/companies')
+      // Sesuai response body di Swagger: response.data.data
+      if (response.data && response.data.data) {
+        setCompanies(response.data.data)
+      } else {
+        setCompanies(response.data)
+      }
+    } catch (error) {
+      console.error('Gagal mengambil data company:', error)
+      alert('Gagal mengambil data dari server.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    localStorage.setItem('companies', JSON.stringify(companies))
-  }, [companies])
+    fetchCompanies()
+  }, [])
+
   // ================= FORM =================
   const [form, setForm] = useState<Company>({
     id: 0,
@@ -68,7 +70,6 @@ function CompanyPage() {
   })
 
   const [isEdit, setIsEdit] = useState(false)
-  const [editIndex, setEditIndex] = useState<number | null>(null)
 
   // ================= HANDLE CHANGE =================
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,8 +79,8 @@ function CompanyPage() {
     })
   }
 
-  // ================= SUBMIT =================
-  const handleSubmit = (e: React.FormEvent) => {
+  // ================= SUBMIT (CREATE & UPDATE) =================
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (
@@ -93,41 +94,30 @@ function CompanyPage() {
       return
     }
 
-    if (isEdit && editIndex !== null) {
-      const updated = [...companies]
-
-      updated[editIndex] = form
-
-      setCompanies(updated)
+    try {
+      if (isEdit) {
+        // --- API UPDATE ---
+        await apiQuotation.put(`/companies/${form.id}`, form)
+        alert('Data perusahaan berhasil diperbarui!')
+      } else {
+        // --- API CREATE ---
+        // Destructuring untuk membuang properti id default (0) agar di-generate otomatis oleh DB backend
+        const { id, ...payload } = form
+        await apiQuotation.post('/companies', payload)
+        alert('Perusahaan baru berhasil ditambahkan!')
+      }
 
       cancelEdit()
-    } else {
-      setCompanies([
-        ...companies,
-        {
-          ...form,
-          id: Date.now(),
-        },
-      ])
-
-      setForm({
-        id: 0,
-        name: '',
-        legalName: '',
-        address: '',
-        email: '',
-        phone: '',
-        website: '',
-        logo: '',
-      })
+      fetchCompanies() // Refresh data terbaru
+    } catch (error) {
+      console.error('Gagal menyimpan data company:', error)
+      alert('Gagal menyimpan data ke server.')
     }
   }
 
   // ================= EDIT =================
-  const handleEdit = (index: number) => {
-    setForm(companies[index])
-
-    setEditIndex(index)
+  const handleEdit = (company: Company) => {
+    setForm(company)
     setIsEdit(true)
 
     window.scrollTo({
@@ -139,8 +129,6 @@ function CompanyPage() {
   // ================= CANCEL =================
   const cancelEdit = () => {
     setIsEdit(false)
-    setEditIndex(null)
-
     setForm({
       id: 0,
       name: '',
@@ -154,9 +142,17 @@ function CompanyPage() {
   }
 
   // ================= DELETE =================
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Apakah yakin ingin menghapus perusahaan ini?')) {
-      setCompanies(companies.filter((_, i) => i !== index))
+      try {
+        // --- API DELETE ---
+        await apiQuotation.delete(`/companies/${id}`)
+        alert('Perusahaan berhasil dihapus!')
+        fetchCompanies() // Refresh data setelah dihapus
+      } catch (error) {
+        console.error('Gagal menghapus company:', error)
+        alert('Gagal menghapus data dari server.')
+      }
     }
   }
 
@@ -201,8 +197,8 @@ function CompanyPage() {
           <form onSubmit={handleSubmit} className="p-6">
             {/* LOGO */}
             <div className="mb-8 flex items-center gap-5">
-              <div className="w-24 h-24 rounded-2xl overflow-hidden border bg-slate-100 shadow-sm">
-                {form.logo ? (
+              <div className="w-24 h-24 rounded-2xl overflow-hidden border bg-slate-100 shadow-sm flex-shrink-0">
+                {form.logo && form.logo.trim() !== '' ? (
                   <img
                     src={form.logo}
                     alt="logo"
@@ -223,14 +219,15 @@ function CompanyPage() {
                 <input
                   type="text"
                   name="logo"
-                  placeholder="/logo-zerra.png"
+                  placeholder="https://example.com/logo.png"
                   value={form.logo}
                   onChange={handleChange}
                   className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
                 />
 
                 <p className="text-xs text-slate-400 mt-2">
-                  Upload logo ke folder public lalu isi: /nama-logo.png
+                  Masukkan URL logo gambar perusahaan (contoh:
+                  https://host.com/logo.png)
                 </p>
               </div>
             </div>
@@ -397,86 +394,99 @@ function CompanyPage() {
         </div>
 
         {/* COMPANY LIST */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {companies.map((company, index) => (
-            <div
-              key={company.id}
-              className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition"
-            >
-              {/* TOP */}
-              <div className="bg-gradient-to-r from-sky-500 to-cyan-400 h-24 relative">
-                <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-2xl overflow-hidden border-4 border-white bg-white shadow-lg">
-                  <img
-                    src={
-                      company.logo && company.logo.trim() !== ''
-                        ? company.logo
-                        : 'https://ui-avatars.com/api/?name=Company'
-                    }
-                    alt="logo"
-                    className="w-full h-full object-cover"
-                  />
+        {isLoading ? (
+          <div className="text-center py-10 bg-white border rounded-3xl text-slate-500">
+            Sedang memuat data dari database server...
+          </div>
+        ) : companies.length === 0 ? (
+          <div className="text-center py-10 bg-white border rounded-3xl text-slate-400">
+            Tidak ada data perusahaan. Silakan tambah data baru.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {companies.map((company) => (
+              <div
+                key={company.id}
+                className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition"
+              >
+                {/* TOP */}
+                <div className="bg-gradient-to-r from-sky-500 to-cyan-400 h-24 relative">
+                  <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-2xl overflow-hidden border-4 border-white bg-white shadow-lg">
+                    <img
+                      src={
+                        company.logo && company.logo.trim() !== ''
+                          ? company.logo
+                          : `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&background=0EA5E9&color=fff`
+                      }
+                      alt="logo"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* CONTENT */}
-              <div className="pt-14 px-6 pb-6">
-                <h2 className="text-xl font-bold text-slate-800">
-                  {company.name}
-                </h2>
+                {/* CONTENT */}
+                <div className="pt-14 px-6 pb-6">
+                  <h2 className="text-xl font-bold text-slate-800">
+                    {company.name}
+                  </h2>
 
-                <p className="text-sm text-slate-500 mt-1">
-                  {company.legalName}
-                </p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    {company.legalName}
+                  </p>
 
-                <div className="mt-5 space-y-3 text-sm text-slate-600">
-                  <div className="flex items-start gap-2">
-                    <MapPin size={16} className="mt-0.5 text-slate-400" />
-                    {company.address}
+                  <div className="mt-5 space-y-3 text-sm text-slate-600">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={16} className="mt-0.5 text-slate-400" />
+                      {company.address}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Phone size={16} className="text-slate-400" />
+                      {company.phone}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Globe size={16} className="text-slate-400" />
+
+                      <a
+                        href={company.website}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sky-600 hover:underline break-all"
+                      >
+                        {company.website && company.website.trim() !== ''
+                          ? company.website
+                          : '-'}
+                      </a>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-slate-400" />
+                      {company.email}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Phone size={16} className="text-slate-400" />
-                    {company.phone}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Globe size={16} className="text-slate-400" />
-
-                    <a
-                      href={company.website}
-                      target="_blank"
-                      className="text-sky-600 hover:underline"
+                  {/* ACTION */}
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      onClick={() => handleEdit(company)}
+                      className="p-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 transition"
                     >
-                      {company.website}
-                    </a>
+                      <PencilLine size={18} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(company.id)}
+                      className="p-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Mail size={16} className="text-slate-400" />
-                    {company.email}
-                  </div>
-                </div>
-
-                {/* ACTION */}
-                <div className="mt-6 flex justify-end gap-2">
-                  <button
-                    onClick={() => handleEdit(index)}
-                    className="p-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 transition"
-                  >
-                    <PencilLine size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(index)}
-                    className="p-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition"
-                  >
-                    <Trash2 size={18} />
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

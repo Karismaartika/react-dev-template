@@ -12,6 +12,12 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { 
+  createEmployee, 
+  deleteEmployee, 
+  getEmployees, 
+  updateEmployee 
+} from '../services/api'
 
 export const Route = createFileRoute('/employee')({
   component: EmployeePage,
@@ -33,11 +39,11 @@ type Company = {
 }
 
 type Employee = {
-  id: number
+  id: string | number
   name: string
   email: string
   phone: string
-  companyId: number
+  company_id: number
 }
 
 /* =========================
@@ -46,52 +52,48 @@ type Employee = {
 
 function EmployeePage() {
   const [search, setSearch] = useState('')
-
-  /* =========================
-     COMPANY DATA
-  ========================= */
-
   const [companies, setCompanies] = useState<Company[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [isEdit, setIsEdit] = useState(false)
+  const [editId, setEditId] = useState<string | number | null>(null)
+  const [openModal, setOpenModal] = useState(false)
 
-  useEffect(() => {
-    const savedCompanies = localStorage.getItem('companies')
-
-    if (savedCompanies) {
-      setCompanies(JSON.parse(savedCompanies))
-    }
-  }, [])
-
-  /* =========================
-     EMPLOYEE DATA
-  ========================= */
-
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: 1,
-      name: 'Kharisma Artika',
-      email: 'kharisma@gmail.com',
-      phone: '08123456789',
-      companyId: 1,
-    },
-  ])
-
-  /* =========================
-     FORM
-  ========================= */
-
-  const [form, setForm] = useState<Employee>({
-    id: 0,
+  const [form, setForm] = useState<Omit<Employee, 'id'>>({
     name: '',
     email: '',
     phone: '',
-    companyId: 1,
+    company_id: 1,
   })
 
-  const [isEdit, setIsEdit] = useState(false)
+  /* =========================
+     EFFECT LOGIC
+  ========================= */
 
-  const [editId, setEditId] = useState<number | null>(null)
+  useEffect(() => {
+    const savedCompanies = localStorage.getItem('companies')
+    if (savedCompanies) {
+      const parsedCompanies = JSON.parse(savedCompanies)
+      setCompanies(parsedCompanies)
+      if (parsedCompanies.length > 0) {
+        setForm((prev) => ({ ...prev, company_id: parsedCompanies[0].id }))
+      }
+    }
+    loadEmployees()
+  }, [])
 
-  const [openModal, setOpenModal] = useState(false)
+  /* =========================
+     LOAD EMPLOYEE API
+  ========================= */
+
+  const loadEmployees = async () => {
+    try {
+      const response = await getEmployees()
+      console.log('Employee API Response:', response)
+      setEmployees(response.data || response || [])
+    } catch (error) {
+      console.error('Failed load employees', error)
+    }
+  }
 
   /* =========================
      FILTER
@@ -99,8 +101,8 @@ function EmployeePage() {
 
   const filteredData = employees.filter(
     (emp) =>
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
-      emp.email.toLowerCase().includes(search.toLowerCase()),
+      emp.name?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.email?.toLowerCase().includes(search.toLowerCase()),
   )
 
   /* =========================
@@ -113,18 +115,17 @@ function EmployeePage() {
       | React.ChangeEvent<HTMLSelectElement>,
   ) => {
     const { name, value } = e.target
-
     setForm({
       ...form,
-      [name]: name === 'companyId' ? Number(value) : value,
+      [name]: name === 'company_id' ? Number(value) : value,
     })
   }
 
   /* =========================
-     SUBMIT
+     SUBMIT (CONNECTED TO API)
   ========================= */
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!form.name || !form.email || !form.phone) {
@@ -132,47 +133,53 @@ function EmployeePage() {
       return
     }
 
-    if (isEdit && editId !== null) {
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === editId
-            ? {
-                ...form,
-                id: editId,
-              }
-            : emp,
-        ),
-      )
-    } else {
-      const newEmployee: Employee = {
-        ...form,
-        id: Date.now(),
+    try {
+      if (isEdit && editId !== null) {
+        await updateEmployee(String(editId), form)
+        alert('Data employee berhasil diperbarui di database! 🎉')
+      } else {
+        await createEmployee(form)
+        alert('Data employee baru berhasil disimpan ke database! 🚀')
       }
-
-      setEmployees([...employees, newEmployee])
+      
+      await loadEmployees()
+      resetForm()
+    } catch (error) {
+      console.error('Gagal menyimpan data ke backend:', error)
+      alert('Gagal memproses data ke server Swagger. Silakan cek console!')
     }
-
-    resetForm()
   }
 
   /* =========================
-     EDIT
+     EDIT TRIGGER
   ========================= */
 
   const handleEdit = (emp: Employee) => {
-    setForm(emp)
+    setForm({
+      name: emp.name,
+      email: emp.email,
+      phone: emp.phone,
+      company_id: Number(emp.company_id),
+    })
     setEditId(emp.id)
     setIsEdit(true)
     setOpenModal(true)
   }
 
   /* =========================
-     DELETE
+     DELETE (CONNECTED TO API)
   ========================= */
 
-  const handleDelete = (id: number) => {
-    if (confirm('Apakah yakin ingin menghapus employee?')) {
-      setEmployees(employees.filter((emp) => emp.id !== id))
+  const handleDelete = async (id: string | number) => {
+    if (confirm('Apakah yakin ingin menghapus employee dari database?')) {
+      try {
+        await deleteEmployee(String(id))
+        alert('Data employee berhasil dihapus! 🗑️')
+        await loadEmployees()
+      } catch (error) {
+        console.error('Gagal menghapus data di backend:', error)
+        alert('Gagal menghapus data dari server Swagger.')
+      }
     }
   }
 
@@ -182,13 +189,11 @@ function EmployeePage() {
 
   const resetForm = () => {
     setForm({
-      id: 0,
       name: '',
       email: '',
       phone: '',
-      companyId: companies.length > 0 ? companies[0].id : 1,
+      company_id: companies.length > 0 ? companies[0].id : 1,
     })
-
     setIsEdit(false)
     setEditId(null)
     setOpenModal(false)
@@ -203,7 +208,6 @@ function EmployeePage() {
             <h1 className="text-3xl font-extrabold text-slate-800">
               Employee Management
             </h1>
-
             <p className="text-slate-500 mt-1">
               Manage employee & company data
             </p>
@@ -228,7 +232,6 @@ function EmployeePage() {
                 size={18}
                 className="absolute left-3 top-3 text-slate-400"
               />
-
               <input
                 type="text"
                 placeholder="Search employee..."
@@ -250,11 +253,8 @@ function EmployeePage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr className="text-slate-600 text-sm">
                   <th className="text-left px-6 py-4 font-bold">Employee</th>
-
                   <th className="text-left px-6 py-4 font-bold">Contact</th>
-
                   <th className="text-left px-6 py-4 font-bold">Company</th>
-
                   <th className="text-center px-6 py-4 font-bold">Action</th>
                 </tr>
               </thead>
@@ -271,12 +271,10 @@ function EmployeePage() {
                         <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center">
                           <Users className="text-sky-600" size={20} />
                         </div>
-
                         <div>
                           <h2 className="font-bold text-slate-800">
                             {emp.name}
                           </h2>
-
                           <p className="text-sm text-slate-500">EMP-{emp.id}</p>
                         </div>
                       </div>
@@ -289,7 +287,6 @@ function EmployeePage() {
                           <Mail size={15} />
                           {emp.email}
                         </div>
-
                         <div className="flex items-center gap-2 text-sm text-slate-600">
                           <Phone size={15} />
                           {emp.phone}
@@ -301,10 +298,9 @@ function EmployeePage() {
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2 text-slate-700 font-medium">
                         <Building2 size={16} />
-
                         {
-                          companies.find((c) => c.id === emp.companyId)
-                            ?.legalName
+                          companies.find((c) => Number(c.id) === Number(emp.company_id))
+                            ?.legalName || 'Unknown Company'
                         }
                       </div>
                     </td>
@@ -345,7 +341,6 @@ function EmployeePage() {
                 <h2 className="text-2xl font-bold text-slate-800">
                   {isEdit ? 'Edit Employee' : 'Add Employee'}
                 </h2>
-
                 <p className="text-slate-500 text-sm mt-1">
                   Input employee information
                 </p>
@@ -366,7 +361,6 @@ function EmployeePage() {
                 <label className="text-sm font-semibold text-slate-600">
                   Employee Name
                 </label>
-
                 <input
                   type="text"
                   name="name"
@@ -382,7 +376,6 @@ function EmployeePage() {
                 <label className="text-sm font-semibold text-slate-600">
                   Email
                 </label>
-
                 <input
                   type="email"
                   name="email"
@@ -398,7 +391,6 @@ function EmployeePage() {
                 <label className="text-sm font-semibold text-slate-600">
                   Phone
                 </label>
-
                 <input
                   type="text"
                   name="phone"
@@ -414,10 +406,9 @@ function EmployeePage() {
                 <label className="text-sm font-semibold text-slate-600">
                   Company
                 </label>
-
                 <select
-                  name="companyId"
-                  value={form.companyId}
+                  name="company_id"
+                  value={form.company_id}
                   onChange={handleChange}
                   className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
                 >
@@ -444,7 +435,6 @@ function EmployeePage() {
                   className="px-5 py-3 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-bold flex items-center gap-2"
                 >
                   <CheckCircle2 size={18} />
-
                   {isEdit ? 'Save Changes' : 'Save Employee'}
                 </button>
               </div>
