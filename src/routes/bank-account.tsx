@@ -9,6 +9,12 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import {
+  createBankAccount,
+  deleteBankAccount,
+  getBankAccounts,
+  updateBankAccount,
+} from '../services/api'
 
 export const Route = createFileRoute('/bank-account')({
   component: BankAccountPage,
@@ -17,7 +23,6 @@ export const Route = createFileRoute('/bank-account')({
 /* =========================
    TYPES
 ========================= */
-
 type Company = {
   id: number
   name: string
@@ -30,54 +35,66 @@ type Company = {
 }
 
 type BankAccount = {
-  id: number
-  bank: string
-  accountName: string
-  accountNumber: string
-  companyId: number
+  id: string | number
+  bank: string // Mapping ke bank_name di BE
+  accountName: string // Mapping ke account_name di BE
+  accountNumber: string // Mapping ke account_number di BE
+  companyId: number // Mapping ke company_id di BE
 }
 
 /* =========================
    COMPONENT
 ========================= */
-
 function BankAccountPage() {
-  /* =========================
-     COMPANY DATA
-  ========================= */
-
   const [companies, setCompanies] = useState<Company[]>([])
 
   useEffect(() => {
     const savedCompanies = localStorage.getItem('companies')
-
     if (savedCompanies) {
       setCompanies(JSON.parse(savedCompanies))
     }
   }, [])
 
   /* =========================
-     BANK DATA
+     BANK DATA LIVE API
   ========================= */
-
   const [accounts, setAccounts] = useState<BankAccount[]>([])
+  const [loading, setLoading] = useState(false)
+
+  // Ambil data dan sesuaikan format backend dengan state UI lokal
+  const fetchBankAccounts = async () => {
+    setLoading(true)
+    try {
+      const res = await getBankAccounts()
+
+      // Karena response data dari Swagger berbentuk { data: [...] }
+      const rawData = res.data || []
+
+      // Mapping dari underscore (BE) ke camelCase (UI)
+      const mappedData: BankAccount[] = rawData.map((item: any) => ({
+        id: item.id,
+        bank: item.bank_name,
+        accountName: item.account_name,
+        accountNumber: item.account_number,
+        companyId: item.company_id || 1,
+      }))
+
+      setAccounts(mappedData)
+    } catch (err) {
+      console.error('Gagal mengambil data rekening dari server:', err)
+      alert('Gagal memuat data dari server. Pastikan Anda sudah login.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const savedAccounts = localStorage.getItem('bankAccounts')
-
-    if (savedAccounts) {
-      setAccounts(JSON.parse(savedAccounts))
-    }
+    fetchBankAccounts()
   }, [])
 
-  useEffect(() => {
-    localStorage.setItem('bankAccounts', JSON.stringify(accounts))
-  }, [accounts])
-
   /* =========================
-     FORM
+     FORM STATE
   ========================= */
-
   const [form, setForm] = useState<BankAccount>({
     id: 0,
     bank: '',
@@ -87,12 +104,7 @@ function BankAccountPage() {
   })
 
   const [isEdit, setIsEdit] = useState(false)
-
-  const [editIndex, setEditIndex] = useState<number | null>(null)
-
-  /* =========================
-     HANDLE CHANGE
-  ========================= */
+  const [editId, setEditId] = useState<string | number | null>(null)
 
   const handleChange = (
     e:
@@ -107,10 +119,9 @@ function BankAccountPage() {
   }
 
   /* =========================
-     SUBMIT
+     SUBMIT (CREATE & UPDATE)
   ========================= */
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!form.bank || !form.accountName || !form.accountNumber) {
@@ -118,43 +129,43 @@ function BankAccountPage() {
       return
     }
 
-    if (isEdit && editIndex !== null) {
-      const updated = [...accounts]
+    // Sesuaikan payload data dengan format penamaan properti di backend Swagger
+    const payload = {
+      bank_name: form.bank,
+      account_name: form.accountName,
+      account_number: form.accountNumber,
+      company_id: form.companyId,
+    }
 
-      updated[editIndex] = form
+    try {
+      if (isEdit && editId !== null) {
+        await updateBankAccount(editId.toString(), payload)
+        alert('Data rekening berhasil diperbarui!')
+        cancelEdit()
+      } else {
+        await createBankAccount(payload)
+        alert('Rekening baru berhasil ditambahkan!')
 
-      setAccounts(updated)
+        setForm({
+          id: 0,
+          bank: '',
+          accountName: '',
+          accountNumber: '',
+          companyId: companies.length > 0 ? companies[0].id : 1,
+        })
+      }
 
-      cancelEdit()
-    } else {
-      setAccounts([
-        ...accounts,
-        {
-          ...form,
-          id: Date.now(),
-        },
-      ])
-
-      setForm({
-        id: 0,
-        bank: '',
-        accountName: '',
-        accountNumber: '',
-        companyId: companies.length > 0 ? companies[0].id : 1,
-      })
+      fetchBankAccounts() // Reload tabel biar langsung update
+    } catch (err) {
+      console.error('Gagal memproses aksi submit:', err)
+      alert('Terjadi kesalahan saat menyimpan data ke server.')
     }
   }
 
-  /* =========================
-     EDIT
-  ========================= */
-
-  const handleEdit = (index: number) => {
-    setForm(accounts[index])
-
+  const handleEdit = (account: BankAccount) => {
+    setForm(account)
     setIsEdit(true)
-
-    setEditIndex(index)
+    setEditId(account.id)
 
     window.scrollTo({
       top: 0,
@@ -162,15 +173,9 @@ function BankAccountPage() {
     })
   }
 
-  /* =========================
-     CANCEL
-  ========================= */
-
   const cancelEdit = () => {
     setIsEdit(false)
-
-    setEditIndex(null)
-
+    setEditId(null)
     setForm({
       id: 0,
       bank: '',
@@ -180,13 +185,16 @@ function BankAccountPage() {
     })
   }
 
-  /* =========================
-     DELETE
-  ========================= */
-
-  const handleDelete = (index: number) => {
+  const handleDelete = async (id: string | number) => {
     if (confirm('Apakah yakin ingin menghapus rekening ini?')) {
-      setAccounts(accounts.filter((_, i) => i !== index))
+      try {
+        await deleteBankAccount(id.toString())
+        alert('Rekening berhasil dihapus!')
+        fetchBankAccounts()
+      } catch (err) {
+        console.error('Gagal menghapus data rekening:', err)
+        alert('Gagal menghapus data dari server.')
+      }
     }
   }
 
@@ -196,13 +204,11 @@ function BankAccountPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Bank Account</h1>
-
           <p className="text-slate-500">Manage company bank accounts</p>
         </div>
 
         <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border">
           <span className="text-slate-500 text-sm">Total Account :</span>
-
           <span className="font-bold text-sky-600 ml-2 text-lg">
             {accounts.length}
           </span>
@@ -218,7 +224,6 @@ function BankAccountPage() {
             ) : (
               <Plus size={18} className="text-sky-500" />
             )}
-
             {isEdit ? 'Edit Bank Account' : 'Add Bank Account'}
           </h2>
         </div>
@@ -230,13 +235,11 @@ function BankAccountPage() {
               <label className="text-sm font-semibold text-slate-600">
                 Company
               </label>
-
               <div className="relative mt-2">
                 <Building2
                   size={18}
                   className="absolute left-3 top-3 text-slate-400"
                 />
-
                 <select
                   name="companyId"
                   value={form.companyId}
@@ -257,13 +260,11 @@ function BankAccountPage() {
               <label className="text-sm font-semibold text-slate-600">
                 Bank Name
               </label>
-
               <div className="relative mt-2">
                 <Landmark
                   size={18}
                   className="absolute left-3 top-3 text-slate-400"
                 />
-
                 <input
                   type="text"
                   name="bank"
@@ -280,7 +281,6 @@ function BankAccountPage() {
               <label className="text-sm font-semibold text-slate-600">
                 Account Name
               </label>
-
               <input
                 type="text"
                 name="accountName"
@@ -296,13 +296,11 @@ function BankAccountPage() {
               <label className="text-sm font-semibold text-slate-600">
                 Account Number
               </label>
-
               <div className="relative mt-2">
                 <CreditCard
                   size={18}
                   className="absolute left-3 top-3 text-slate-400"
                 />
-
                 <input
                   type="text"
                   name="accountNumber"
@@ -344,66 +342,74 @@ function BankAccountPage() {
 
       {/* TABLE */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-slate-50">
-            <tr className="text-slate-600 text-sm">
-              <th className="text-left px-6 py-4 font-bold">Company</th>
+        {loading ? (
+          <div className="p-10 text-center text-slate-500 font-semibold">
+            Memuat data dari server backend...
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-slate-50">
+              <tr className="text-slate-600 text-sm">
+                <th className="text-left px-6 py-4 font-bold">Company</th>
+                <th className="text-left px-6 py-4 font-bold">Bank</th>
+                <th className="text-left px-6 py-4 font-bold">Account Name</th>
+                <th className="text-left px-6 py-4 font-bold">
+                  Account Number
+                </th>
+                <th className="text-center px-6 py-4 font-bold">Action</th>
+              </tr>
+            </thead>
 
-              <th className="text-left px-6 py-4 font-bold">Bank</th>
-
-              <th className="text-left px-6 py-4 font-bold">Account Name</th>
-
-              <th className="text-left px-6 py-4 font-bold">Account Number</th>
-
-              <th className="text-center px-6 py-4 font-bold">Action</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {accounts.map((acc, i) => {
-              const company = companies.find((c) => c.id === acc.companyId)
-
-              return (
-                <tr
-                  key={acc.id}
-                  className="border-t border-slate-100 hover:bg-slate-50 transition"
-                >
-                  <td className="px-6 py-4 font-medium text-slate-700">
-                    {company?.legalName}
-                  </td>
-
-                  <td className="px-6 py-4 font-semibold text-slate-700">
-                    {acc.bank}
-                  </td>
-
-                  <td className="px-6 py-4">{acc.accountName}</td>
-
-                  <td className="px-6 py-4 text-slate-600">
-                    {acc.accountNumber}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => handleEdit(i)}
-                        className="p-2 rounded-lg hover:bg-amber-100 text-amber-600 transition"
-                      >
-                        <Pencil size={18} />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(i)}
-                        className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+            <tbody>
+              {accounts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-slate-400">
+                    Tidak ada data rekening bank di database backend.
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ) : (
+                accounts.map((acc) => {
+                  const company = companies.find((c) => c.id === acc.companyId)
+
+                  return (
+                    <tr
+                      key={acc.id}
+                      className="border-t border-slate-100 hover:bg-slate-50 transition"
+                    >
+                      <td className="px-6 py-4 font-medium text-slate-700">
+                        {company?.legalName || 'PT Zerra Teknologi Integrasi'}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-700">
+                        {acc.bank}
+                      </td>
+                      <td className="px-6 py-4">{acc.accountName}</td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {acc.accountNumber}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => handleEdit(acc)}
+                            className="p-2 rounded-lg hover:bg-amber-100 text-amber-600 transition"
+                          >
+                            <Pencil size={18} />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(acc.id)}
+                            className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
-import { FileText, Plus, Printer, Trash2, Mail, Globe } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileText, Globe, Mail, Plus, Printer, Trash2 } from 'lucide-react'
 
 export const Route = createFileRoute('/quotation')({
   component: QuotationPage,
@@ -102,7 +102,7 @@ function QuotationPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [customerName, setCustomerName] = useState('')
   const [customerCompany, setCustomerCompany] = useState('')
-  
+
   const [discountPercent, setDiscountPercent] = useState(0)
   const [vatPercent, setVatPercent] = useState(11)
 
@@ -120,14 +120,14 @@ function QuotationPage() {
      AUTOMATIC NUMBER GENERATOR LOGIC
   ========================= */
   useEffect(() => {
-    const currentTotalQuotations = 4;
-    const nextSequence = currentTotalQuotations + 1;
-    
-    const currentYear = new Date().getFullYear();
-    const generatedNumber = `SPN-ZRA/III/${currentYear}/${String(nextSequence).padStart(3, '0')}`;
-    
-    setQuoteNumber(generatedNumber);
-  }, []);
+    const currentTotalQuotations = 4
+    const nextSequence = currentTotalQuotations + 1
+
+    const currentYear = new Date().getFullYear()
+    const generatedNumber = `SPN-ZRA/III/${currentYear}/${String(nextSequence).padStart(3, '0')}`
+
+    setQuoteNumber(generatedNumber)
+  }, [])
 
   /* =========================
      FILTER DATA
@@ -245,14 +245,18 @@ function QuotationPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {/* COMPANY */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Company</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Company
+            </label>
             <select
               value={selectedCompany}
               onChange={(e) => {
                 const companyId = +e.target.value
                 setSelectedCompany(companyId)
 
-                const employee = employees.find((e) => e.companyId === companyId)
+                const employee = employees.find(
+                  (e) => e.companyId === companyId,
+                )
                 const bank = bankAccounts.find((b) => b.companyId === companyId)
 
                 if (employee) setSelectedEmployee(employee.id)
@@ -270,7 +274,9 @@ function QuotationPage() {
 
           {/* PREPARED BY */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Prepared By</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Prepared By
+            </label>
             <select
               value={selectedEmployee}
               onChange={(e) => setSelectedEmployee(+e.target.value)}
@@ -286,7 +292,9 @@ function QuotationPage() {
 
           {/* BANK */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Bank Account</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Bank Account
+            </label>
             <select
               value={selectedBank}
               onChange={(e) => setSelectedBank(+e.target.value)}
@@ -313,7 +321,9 @@ function QuotationPage() {
 
           {/* QUOTE NUMBER */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Quote Number</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Quote Number
+            </label>
             <input
               type="text"
               value={quoteNumber}
@@ -324,7 +334,9 @@ function QuotationPage() {
 
           {/* CUSTOMER NAME */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Customer Name</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Customer Name
+            </label>
             <input
               type="text"
               value={customerName}
@@ -336,7 +348,9 @@ function QuotationPage() {
 
           {/* CUSTOMER COMPANY */}
           <div>
-            <label className="text-sm font-semibold text-slate-600">Customer Company</label>
+            <label className="text-sm font-semibold text-slate-600">
+              Customer Company
+            </label>
             <input
               type="text"
               value={customerCompany}
@@ -349,7 +363,9 @@ function QuotationPage() {
           {/* DISCOUNT & TAX INPUTS */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-semibold text-slate-600">Discount %</label>
+              <label className="text-sm font-semibold text-slate-600">
+                Discount %
+              </label>
               <input
                 type="number"
                 min="0"
@@ -359,7 +375,9 @@ function QuotationPage() {
               />
             </div>
             <div>
-              <label className="text-sm font-semibold text-slate-600">Tax / VAT %</label>
+              <label className="text-sm font-semibold text-slate-600">
+                Tax / VAT %
+              </label>
               <input
                 type="number"
                 min="0"
@@ -392,7 +410,9 @@ function QuotationPage() {
               >
                 <textarea
                   value={item.description}
-                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                  onChange={(e) =>
+                    updateItem(item.id, 'description', e.target.value)
+                  }
                   rows={5}
                   className="md:col-span-6 border rounded-xl p-3"
                 />
@@ -405,7 +425,9 @@ function QuotationPage() {
                 <input
                   type="number"
                   value={item.price}
-                  onChange={(e) => updateItem(item.id, 'price', +e.target.value)}
+                  onChange={(e) =>
+                    updateItem(item.id, 'price', +e.target.value)
+                  }
                   className="md:col-span-3 border rounded-xl p-3"
                 />
                 <button
@@ -439,7 +461,10 @@ function QuotationPage() {
         {/* LOGO & PROFILE */}
         <div className="flex justify-between items-start border-b pb-4">
           <div className="flex gap-4 items-start max-w-[70%]">
-            <img src={company?.logo} className="w-16 h-16 object-contain mt-1" />
+            <img
+              src={company?.logo}
+              className="w-16 h-16 object-contain mt-1"
+            />
             <div>
               <h1 className="font-black text-2xl uppercase tracking-wide text-slate-900">
                 {company?.legalName}
@@ -447,15 +472,18 @@ function QuotationPage() {
               <p className="text-[11px] font-bold text-slate-500 mb-1 italic">
                 {company?.tagline}
               </p>
-              <p className="text-slate-800 font-semibold leading-normal">{company?.address}</p>
-              
+              <p className="text-slate-800 font-semibold leading-normal">
+                {company?.address}
+              </p>
+
               {/* Info Kontak dengan Icon Kecil */}
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-800 font-bold">
                 <span className="flex items-center gap-1">
                   <Mail size={12} className="text-slate-600" /> {company?.email}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Globe size={12} className="text-slate-600" /> {company?.website}
+                  <Globe size={12} className="text-slate-600" />{' '}
+                  {company?.website}
                 </span>
               </div>
             </div>
@@ -482,14 +510,33 @@ function QuotationPage() {
         {/* CLIENT DETAILS */}
         <div className="flex justify-between mt-6 text-[11px] font-semibold">
           <div className="space-y-1">
-            <p><span className="text-slate-600 font-bold">Prepared by :</span> <span className="font-black text-slate-900">{employee?.name}</span></p>
-            <p><span className="text-slate-600 font-bold">Phone :</span> <span className="text-slate-900 font-bold">{employee?.phone}</span></p>
-            <p><span className="text-slate-600 font-bold">Email :</span> <span className="text-slate-900 font-bold">{employee?.email}</span></p>
+            <p>
+              <span className="text-slate-600 font-bold">Prepared by :</span>{' '}
+              <span className="font-black text-slate-900">
+                {employee?.name}
+              </span>
+            </p>
+            <p>
+              <span className="text-slate-600 font-bold">Phone :</span>{' '}
+              <span className="text-slate-900 font-bold">
+                {employee?.phone}
+              </span>
+            </p>
+            <p>
+              <span className="text-slate-600 font-bold">Email :</span>{' '}
+              <span className="text-slate-900 font-bold">
+                {employee?.email}
+              </span>
+            </p>
           </div>
           <div className="text-right space-y-0.5">
             <p className="text-slate-600 font-bold">To :</p>
-            <p className="font-black text-sm text-slate-900">{customerName || '-'}</p>
-            <p className="font-black text-slate-800">{customerCompany || '-'}</p>
+            <p className="font-black text-sm text-slate-900">
+              {customerName || '-'}
+            </p>
+            <p className="font-black text-slate-800">
+              {customerCompany || '-'}
+            </p>
           </div>
         </div>
 
@@ -497,7 +544,10 @@ function QuotationPage() {
         <div className="mt-6 text-[11px] leading-relaxed text-slate-900 font-semibold">
           <p>Dengan hormat,</p>
           <p className="mt-1">
-            Besama ini kami dari <b className="font-black text-black">{company?.legalName}</b> mengajukan penawaran penawaran, adapun harga yang kami ajukan yaitu, sebagai berikut :
+            Besama ini kami dari{' '}
+            <b className="font-black text-black">{company?.legalName}</b>{' '}
+            mengajukan penawaran penawaran, adapun harga yang kami ajukan yaitu,
+            sebagai berikut :
           </p>
         </div>
 
@@ -505,53 +555,94 @@ function QuotationPage() {
         <table className="w-full border-collapse border-2 border-slate-400 mt-4 text-[11px]">
           <thead>
             <tr className="bg-slate-200 text-slate-900 font-black border-b-2 border-slate-400">
-              <th className="border border-slate-400 p-2 text-center w-8">No</th>
+              <th className="border border-slate-400 p-2 text-center w-8">
+                No
+              </th>
               <th className="border border-slate-400 p-2 text-left">Item</th>
-              <th className="border border-slate-400 p-2 text-center w-12">Qty</th>
-              <th className="border border-slate-400 p-2 text-left w-28">Price</th>
-              <th className="border border-slate-400 p-2 text-left w-32">Total</th>
+              <th className="border border-slate-400 p-2 text-center w-12">
+                Qty
+              </th>
+              <th className="border border-slate-400 p-2 text-left w-28">
+                Price
+              </th>
+              <th className="border border-slate-400 p-2 text-left w-32">
+                Total
+              </th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
-              <tr key={item.id} className="text-slate-900 font-semibold border-b border-slate-300">
-                <td className="border border-slate-300 p-2 text-center font-bold">{index + 1}</td>
-                <td className="border border-slate-300 p-2 whitespace-pre-line leading-normal font-bold text-slate-950">{item.description}</td>
-                <td className="border border-slate-300 p-2 text-center font-bold">{item.qty}</td>
-                <td className="border border-slate-300 p-2 font-bold">{renderCurrency(item.price)}</td>
-                <td className="border border-slate-300 p-2 font-black">{renderCurrency(item.qty * item.price)}</td>
+              <tr
+                key={item.id}
+                className="text-slate-900 font-semibold border-b border-slate-300"
+              >
+                <td className="border border-slate-300 p-2 text-center font-bold">
+                  {index + 1}
+                </td>
+                <td className="border border-slate-300 p-2 whitespace-pre-line leading-normal font-bold text-slate-950">
+                  {item.description}
+                </td>
+                <td className="border border-slate-300 p-2 text-center font-bold">
+                  {item.qty}
+                </td>
+                <td className="border border-slate-300 p-2 font-bold">
+                  {renderCurrency(item.price)}
+                </td>
+                <td className="border border-slate-300 p-2 font-black">
+                  {renderCurrency(item.qty * item.price)}
+                </td>
               </tr>
             ))}
 
             {/* Subtotal */}
             <tr className="bg-slate-50 border-t-2 border-slate-400">
-              <td colSpan={4} className="border border-slate-300 p-2 text-right font-black text-slate-800">Total</td>
-              <td className="border border-slate-300 p-2 font-black text-slate-950">{renderCurrency(subtotal)}</td>
+              <td
+                colSpan={4}
+                className="border border-slate-300 p-2 text-right font-black text-slate-800"
+              >
+                Total
+              </td>
+              <td className="border border-slate-300 p-2 font-black text-slate-950">
+                {renderCurrency(subtotal)}
+              </td>
             </tr>
 
             {/* Discount */}
             {discountPercent > 0 && (
               <tr className="text-red-700">
-                <td colSpan={4} className="border border-slate-300 p-2 text-right font-black">
+                <td
+                  colSpan={4}
+                  className="border border-slate-300 p-2 text-right font-black"
+                >
                   Discount ({discountPercent}%)
                 </td>
-                <td className="border border-slate-300 p-2 font-black">{renderCurrency(discount, '-')}</td>
+                <td className="border border-slate-300 p-2 font-black">
+                  {renderCurrency(discount, '-')}
+                </td>
               </tr>
             )}
 
             {/* VAT/Pajak */}
             {vatPercent > 0 && (
               <tr className="text-slate-900">
-                <td colSpan={4} className="border border-slate-300 p-2 text-right font-black text-slate-800">
+                <td
+                  colSpan={4}
+                  className="border border-slate-300 p-2 text-right font-black text-slate-800"
+                >
                   VAT ({vatPercent}%)
                 </td>
-                <td className="border border-slate-300 p-2 font-black text-slate-950">{renderCurrency(vat)}</td>
+                <td className="border border-slate-300 p-2 font-black text-slate-950">
+                  {renderCurrency(vat)}
+                </td>
               </tr>
             )}
 
             {/* Grand Total - Diperkecil & Sejajar Rata Kiri-Kanan */}
             <tr className="bg-slate-200 text-slate-900 border-t-2 border-slate-400">
-              <td colSpan={4} className="border border-slate-400 p-2 text-right font-black text-sm uppercase">
+              <td
+                colSpan={4}
+                className="border border-slate-400 p-2 text-right font-black text-sm uppercase"
+              >
                 Grand Total
               </td>
               <td className="border border-slate-400 p-2 font-black text-sm text-black">
@@ -567,9 +658,20 @@ function QuotationPage() {
             Payment Information
           </h2>
           <div className="space-y-0.5 text-slate-900 font-bold">
-            <p><span className="text-slate-600">Bank :</span> <span className="font-black">{bank?.bank}</span></p>
-            <p><span className="text-slate-600">Account Number :</span> <span className="font-mono font-black text-black">{bank?.accountNumber}</span></p>
-            <p><span className="text-slate-600">Account Name :</span> <span className="font-black">{bank?.accountName}</span></p>
+            <p>
+              <span className="text-slate-600">Bank :</span>{' '}
+              <span className="font-black">{bank?.bank}</span>
+            </p>
+            <p>
+              <span className="text-slate-600">Account Number :</span>{' '}
+              <span className="font-mono font-black text-black">
+                {bank?.accountNumber}
+              </span>
+            </p>
+            <p>
+              <span className="text-slate-600">Account Name :</span>{' '}
+              <span className="font-black">{bank?.accountName}</span>
+            </p>
           </div>
         </div>
 
@@ -577,12 +679,16 @@ function QuotationPage() {
         <div className="mt-8 flex justify-end text-center text-[11px] font-bold">
           <div className="min-w-[200px]">
             <p className="text-slate-700">Sincerely,</p>
-            <p className="font-black text-black uppercase">{company?.legalName}</p>
+            <p className="font-black text-black uppercase">
+              {company?.legalName}
+            </p>
             <div className="h-20" />
             <p className="font-black text-sm text-black border-b-2 border-black pb-0.5 inline-block px-4">
               {employee?.name}
             </p>
-            <p className="text-slate-600 mt-1 font-bold">{employee?.position}</p>
+            <p className="text-slate-600 mt-1 font-bold">
+              {employee?.position}
+            </p>
           </div>
         </div>
       </div>
