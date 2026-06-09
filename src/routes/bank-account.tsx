@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import {
+import api, {
   createBankAccount,
   deleteBankAccount,
   getBankAccounts,
@@ -26,7 +26,7 @@ export const Route = createFileRoute('/bank-account')({
 type Company = {
   id: number
   name: string
-  legalName: string
+  legal_name: string // Disamakan menjadi snake_case agar sinkron dengan database
   address: string
   email: string
   phone: string
@@ -36,10 +36,10 @@ type Company = {
 
 type BankAccount = {
   id: string | number
-  bank: string // Mapping ke bank_name di BE
-  accountName: string // Mapping ke account_name di BE
+  bank: string         // Mapping ke bank_name di BE
+  accountName: string  // Mapping ke account_name di BE
   accountNumber: string // Mapping ke account_number di BE
-  companyId: number // Mapping ke company_id di BE
+  companyId: number    // Mapping ke company_id di BE
 }
 
 /* =========================
@@ -47,50 +47,9 @@ type BankAccount = {
 ========================= */
 function BankAccountPage() {
   const [companies, setCompanies] = useState<Company[]>([])
-
-  useEffect(() => {
-    const savedCompanies = localStorage.getItem('companies')
-    if (savedCompanies) {
-      setCompanies(JSON.parse(savedCompanies))
-    }
-  }, [])
-
-  /* =========================
-     BANK DATA LIVE API
-  ========================= */
   const [accounts, setAccounts] = useState<BankAccount[]>([])
   const [loading, setLoading] = useState(false)
-
-  // Ambil data dan sesuaikan format backend dengan state UI lokal
-  const fetchBankAccounts = async () => {
-    setLoading(true)
-    try {
-      const res = await getBankAccounts()
-
-      // Karena response data dari Swagger berbentuk { data: [...] }
-      const rawData = res.data || []
-
-      // Mapping dari underscore (BE) ke camelCase (UI)
-      const mappedData: BankAccount[] = rawData.map((item: any) => ({
-        id: item.id,
-        bank: item.bank_name,
-        accountName: item.account_name,
-        accountNumber: item.account_number,
-        companyId: item.company_id || 1,
-      }))
-
-      setAccounts(mappedData)
-    } catch (err) {
-      console.error('Gagal mengambil data rekening dari server:', err)
-      alert('Gagal memuat data dari server. Pastikan Anda sudah login.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchBankAccounts()
-  }, [])
+  const [loadingCompanies, setLoadingCompanies] = useState(false)
 
   /* =========================
      FORM STATE
@@ -100,12 +59,83 @@ function BankAccountPage() {
     bank: '',
     accountName: '',
     accountNumber: '',
-    companyId: 1,
+    companyId: 0, // Di-set 0 sementara sampai data perusahaan ter-fetch
   })
 
   const [isEdit, setIsEdit] = useState(false)
   const [editId, setEditId] = useState<string | number | null>(null)
 
+  /* =========================
+     LOAD INITIAL MASTER DATA
+  ========================= */
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setLoadingCompanies(true)
+        
+        // FIX: Ambil seluruh daftar PT penawaran dari Live API Backend, bukan LocalStorage
+        const resCompany = await api.get('/companies')
+        const fetchedCompanies: Company[] = resCompany.data?.data || resCompany.data || []
+        
+        setCompanies(fetchedCompanies)
+
+        // Set default companyId pada form input
+        if (fetchedCompanies.length > 0) {
+          setForm((prev) => ({ ...prev, companyId: fetchedCompanies[0].id }))
+        }
+      } catch (err) {
+        console.error('Gagal memuat daftar master company dari API:', err)
+        
+        // Fallback cadangan jika API mendadak terputus
+        const savedCompanies = localStorage.getItem('companies')
+        if (savedCompanies) {
+          const parsed = JSON.parse(savedCompanies)
+          setCompanies(parsed)
+          if (parsed.length > 0) {
+            setForm((prev) => ({ ...prev, companyId: parsed[0].id }))
+          }
+        }
+      } finally {
+        setLoadingCompanies(false)
+      }
+
+      // Ambil list akun bank dari database server
+      await fetchBankAccounts()
+    }
+
+    loadInitialData()
+  }, [])
+
+  /* =========================
+     BANK DATA LIVE API
+  ========================= */
+  const fetchBankAccounts = async () => {
+    setLoading(true)
+    try {
+      const res = await getBankAccounts()
+      const rawData = res.data || []
+
+      // Memetakan struktur snake_case API ke camelCase internal state UI
+      const mappedData: BankAccount[] = rawData.map((item: any) => ({
+        id: item.id,
+        bank: item.bank_name,
+        accountName: item.account_name,
+        accountNumber: item.account_number,
+        companyId: Number(item.company_id) || 0,
+      }))
+
+      setAccounts(mappedData)
+    } catch (err) {
+      console.error('Gagal mengambil data rekening dari server:', err)
+      alert('Gagal memuat data dari server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /* =========================
+     HANDLE CHANGE
+  ========================= */
   const handleChange = (
     e:
       | React.ChangeEvent<HTMLInputElement>
@@ -124,41 +154,40 @@ function BankAccountPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.bank || !form.accountName || !form.accountNumber) {
-      alert('Semua field wajib diisi')
+    if (!form.bank || !form.accountName || !form.accountNumber || Number(form.companyId) === 0) {
+      alert('Semua field termasuk pilihan nama PT wajib diisi!')
       return
     }
 
-    // Sesuaikan payload data dengan format penamaan properti di backend Swagger
     const payload = {
       bank_name: form.bank,
       account_name: form.accountName,
       account_number: form.accountNumber,
-      company_id: form.companyId,
+      company_id: Number(form.companyId),
     }
 
     try {
       if (isEdit && editId !== null) {
         await updateBankAccount(editId.toString(), payload)
-        alert('Data rekening berhasil diperbarui!')
+        alert('Data rekening berhasil diperbarui! 🎉')
         cancelEdit()
       } else {
         await createBankAccount(payload)
-        alert('Rekening baru berhasil ditambahkan!')
+        alert('Rekening baru berhasil ditambahkan! 🚀')
 
         setForm({
           id: 0,
           bank: '',
           accountName: '',
           accountNumber: '',
-          companyId: companies.length > 0 ? companies[0].id : 1,
+          companyId: companies.length > 0 ? companies[0].id : 0,
         })
       }
 
-      fetchBankAccounts() // Reload tabel biar langsung update
+      await fetchBankAccounts()
     } catch (err) {
       console.error('Gagal memproses aksi submit:', err)
-      alert('Terjadi kesalahan saat menyimpan data ke server.')
+      alert('Terjadi kesalahan saat menyimpan data ke server backend.')
     }
   }
 
@@ -181,7 +210,7 @@ function BankAccountPage() {
       bank: '',
       accountName: '',
       accountNumber: '',
-      companyId: companies.length > 0 ? companies[0].id : 1,
+      companyId: companies.length > 0 ? companies[0].id : 0,
     })
   }
 
@@ -189,8 +218,8 @@ function BankAccountPage() {
     if (confirm('Apakah yakin ingin menghapus rekening ini?')) {
       try {
         await deleteBankAccount(id.toString())
-        alert('Rekening berhasil dihapus!')
-        fetchBankAccounts()
+        alert('Rekening berhasil dihapus! 🗑️')
+        await fetchBankAccounts()
       } catch (err) {
         console.error('Gagal menghapus data rekening:', err)
         alert('Gagal menghapus data dari server.')
@@ -230,7 +259,7 @@ function BankAccountPage() {
 
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-            {/* COMPANY */}
+            {/* COMPANY DROPDOWN */}
             <div>
               <label className="text-sm font-semibold text-slate-600">
                 Company
@@ -246,11 +275,17 @@ function BankAccountPage() {
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 bg-white"
                 >
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.legalName}
-                    </option>
-                  ))}
+                  {loadingCompanies ? (
+                    <option>Loading daftar PT...</option>
+                  ) : companies.length === 0 ? (
+                    <option value={0}>Tidak ada PT di database</option>
+                  ) : (
+                    companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.legal_name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
@@ -284,7 +319,7 @@ function BankAccountPage() {
               <input
                 type="text"
                 name="accountName"
-                placeholder="PT Zerra Teknologi"
+                placeholder="Nama Pemilik Rekening"
                 value={form.accountName}
                 onChange={handleChange}
                 className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
@@ -353,9 +388,7 @@ function BankAccountPage() {
                 <th className="text-left px-6 py-4 font-bold">Company</th>
                 <th className="text-left px-6 py-4 font-bold">Bank</th>
                 <th className="text-left px-6 py-4 font-bold">Account Name</th>
-                <th className="text-left px-6 py-4 font-bold">
-                  Account Number
-                </th>
+                <th className="text-left px-6 py-4 font-bold">Account Number</th>
                 <th className="text-center px-6 py-4 font-bold">Action</th>
               </tr>
             </thead>
@@ -369,7 +402,8 @@ function BankAccountPage() {
                 </tr>
               ) : (
                 accounts.map((acc) => {
-                  const company = companies.find((c) => c.id === acc.companyId)
+                  // FIX MATCHING: Membandingkan ID dengan tipe number secara aman
+                  const company = companies.find((c) => Number(c.id) === Number(acc.companyId))
 
                   return (
                     <tr
@@ -377,7 +411,7 @@ function BankAccountPage() {
                       className="border-t border-slate-100 hover:bg-slate-50 transition"
                     >
                       <td className="px-6 py-4 font-medium text-slate-700">
-                        {company?.legalName || 'PT Zerra Teknologi Integrasi'}
+                        {company ? company.legal_name : 'Loading / Perusahaan Tidak Ditemukan'}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
                         {acc.bank}
