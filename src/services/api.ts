@@ -38,6 +38,23 @@ apiQuotation.interceptors.request.use(
     return Promise.reject(error)
   },
 )
+// Interceptor untuk menangkap error response
+apiQuotation.interceptors.response.use(
+  (response) => response,
+
+  (error) => {
+    if (error.response?.status === 401) {
+      // hapus token
+      localStorage.removeItem('token')
+      localStorage.removeItem('loggedIn')
+
+      // redirect ke login
+      window.location.href = '/login'
+    }
+
+    return Promise.reject(error)
+  },
+)
 
 // =================================================================
 // 3. FUNGSI CRUD LOGISTIK BANK ACCOUNT
