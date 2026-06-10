@@ -1,15 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { FileText, Globe, Mail, Plus, Printer, Trash2, List, FilePlus, Eye } from 'lucide-react'
+import { Eye, FilePlus, FileText, Globe, List, Mail, Plus, Printer, Trash2 } from 'lucide-react'
 import api from '../services/api'
 
 export const Route = createFileRoute('/quotation')({
   component: QuotationPage,
 })
 
-/* =========================
+/* ==========================================================================
    TYPES DEFINITIONS
-========================= */
+   ========================================================================== */
 type CompanyType = {
   id: number
   name: string
@@ -40,7 +40,7 @@ type BankAccountType = {
 }
 
 type Item = {
-  id: string | number // Diubah agar bisa menerima string id lokal temporer
+  id: number
   description: string
   qty: number
   price: number
@@ -61,9 +61,9 @@ type QuotationData = {
   grand_total?: number
 }
 
-/* =========================
+/* ==========================================================================
    MAIN COMPONENT
-========================= */
+   ========================================================================== */
 function QuotationPage() {
   // Master data state
   const [companies, setCompanies] = useState<CompanyType[]>([])
@@ -80,6 +80,12 @@ function QuotationPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [totalPages, setTotalPages] = useState<number>(1)
+  const [totalItems, setTotalItems] = useState<number>(0)
+  const LIMIT_PER_PAGE = 10
+
   // Form Fields States
   const [editId, setEditId] = useState<number | null>(null)
   const [quoteNumber, setQuoteNumber] = useState('')
@@ -93,26 +99,26 @@ function QuotationPage() {
   const [vatPercent, setVatPercent] = useState<number>(11)
   const [items, setItems] = useState<Item[]>([
     {
-      id: 'init-1',
+      id: Date.now(),
       description: '(Contoh) Meja Kerja Ichiko\nSpesifikasi :\n- Type : UNO UOD 1031\n- Ukuran : 120 X 60 X 75 cm',
       qty: 1,
       price: 1000000,
     },
   ])
 
-  /* =========================
-     FETCH ALL INITIAL DATA
-  ========================= */
+  /* ==========================================================================
+     FETCH ALL INITIAL DATA (TOTAL UNLOCKED - NO LIMIT)
+     ========================================================================== */
   const loadAllData = async () => {
     try {
       setLoading(true)
       setErrorMsg('')
       
-      const [resCompany, resEmployee, resBank, resQuotes] = await Promise.all([
+      // 1. Fetch master data pendukung
+      const [resCompany, resEmployee, resBank] = await Promise.all([
         api.get('/companies'),
         api.get('/employees'),
-        api.get('/bank_accounts'),
-        api.get('/quotations').catch(() => ({ data: { data: [] } }))
+        api.get('/bank_accounts')
       ])
 
       const fetchedCompanies: CompanyType[] = resCompany.data?.data || []
@@ -125,20 +131,44 @@ function QuotationPage() {
         fetchedBanks = resBank.data.data
       }
 
-      const fetchedQuotes: QuotationData[] = resQuotes.data?.data || resQuotes.data || []
-
       setCompanies(fetchedCompanies)
       setEmployees(fetchedEmployees)
       setBankAccounts(fetchedBanks)
-      setQuotations(fetchedQuotes)
 
-      if (fetchedCompanies.length > 0 && selectedCompany === 0) {
-        initFormDefaults(fetchedCompanies[0].id, fetchedEmployees, fetchedBanks, fetchedQuotes.length)
+      // 2. Fetch DATA QUOTATION - Set LIMIT ke 9999 agar keluar semua datanya tanpa batasan!
+      const resQuotes = await api.get('/quotations/', {
+        params: {
+          page: 1,
+          limit: 9999
+        }
+      }).catch((err) => {
+        console.error("Gagal fetch quotations:", err)
+        return { data: { data: [], total: 0 } }
+      })
+
+      let fetchedQuotes: QuotationData[] = []
+      let totalCount = 0
+
+      if (resQuotes && resQuotes.data) {
+        if (Array.isArray(resQuotes.data.data)) {
+          fetchedQuotes = resQuotes.data.data
+          totalCount = resQuotes.data.total || resQuotes.data.data.length
+        } else if (Array.isArray(resQuotes.data)) {
+          fetchedQuotes = resQuotes.data
+          totalCount = resQuotes.data.length
+        }
       }
 
-    } catch (err: any) {
+      setTotalItems(totalCount)
+      setTotalPages(1) 
+
+      // Urutkan berdasarkan ID terbesar ke terkecil
+      const sortedQuotes = [...fetchedQuotes].sort((a, b) => Number(b.id) - Number(a.id))
+      setQuotations(sortedQuotes)
+
+    } catch (err) {
       console.error("Gagal memuat data:", err)
-      setErrorMsg("Gagal sinkronisasi data dengan API server.")
+      setErrorMsg("Gagal sinkronisasi data daftar quotation dengan API server.")
     } finally {
       setLoading(false)
     }
@@ -146,37 +176,34 @@ function QuotationPage() {
 
   useEffect(() => {
     loadAllData()
-  }, [])
+  }, [currentPage])
 
-  const initFormDefaults = (companyId: number, emps = employees, banks = bankAccounts, currentTotal = quotations.length) => {
+  const initFormDefaults = (companyId: number, emps = employees, banks = bankAccounts) => {
     setSelectedCompany(companyId)
-    const firstEmp = emps.find((e) => e.company_id === companyId)
-    const firstBank = banks.find((b) => b.company_id === companyId)
-    if (firstEmp) setSelectedEmployee(firstEmp.id)
-    if (firstBank) setSelectedBank(firstBank.id)
+    const firstEmp = emps.find((e) => Number(e.company_id) === Number(companyId))
+    const firstBank = banks.find((b) => Number(b.company_id) === Number(companyId))
+    
+    setSelectedEmployee(firstEmp ? firstEmp.id : 0)
+    setSelectedBank(firstBank ? firstBank.id : 0)
     
     const currentYear = new Date().getFullYear()
-    setQuoteNumber(`SPN-ZRA/III/${currentYear}/${String(currentTotal + 1).padStart(3, '0')}`)
+    setQuoteNumber(`SPN-ZRA/III/${currentYear}/${String(totalItems + 1).padStart(3, '0')}`)
   }
 
-  /* =========================
+  /* ==========================================================================
      FILTER RELATIONAL DATA
-  ========================= */
-  const filteredEmployees = employees.filter((e) => e.company_id === selectedCompany)
-  const filteredBanks = bankAccounts.filter((b) => b.company_id === selectedCompany)
+     ========================================================================== */
+  const filteredEmployees = employees.filter((e) => Number(e.company_id) === Number(selectedCompany))
+  const filteredBanks = bankAccounts.filter((b) => Number(b.company_id) === Number(selectedCompany))
 
-  const company = companies.find((c) => c.id === selectedCompany)
-  const employee = filteredEmployees.find((e) => e.id === selectedEmployee)
-  const bank = filteredBanks.find((b) => b.id === selectedBank)
-
-  /* =========================
-     CALCULATION LOGIC
-  ========================= */
-  const subtotal = items.reduce((acc, item) => acc + item.qty * item.price, 0)
-  const discount = subtotal * (discountPercent / 100)
-  const afterDiscount = subtotal - discount
-  const vat = afterDiscount * (vatPercent / 100)
-  const grandTotal = afterDiscount + vat
+  /* ==========================================================================
+     CALCULATION LOGIC (FORM LOCAL)
+     ========================================================================== */
+  const itemsSubtotal = items.reduce((acc, item) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+  const itemsDiscount = itemsSubtotal * (Number(discountPercent || 0) / 100)
+  const afterDiscount = itemsSubtotal - itemsDiscount
+  const itemsVat = afterDiscount * (Number(vatPercent || 0) / 100)
+  const grandTotalValue = afterDiscount + itemsVat
 
   const renderCurrency = (value: number, prefix = '') => (
     <div className="flex justify-between w-full px-1">
@@ -185,27 +212,26 @@ function QuotationPage() {
     </div>
   )
 
-  /* =========================
+  /* ==========================================================================
      ITEMS CRUD INNER FORM
-  ========================= */
+     ========================================================================== */
   const addItem = () => {
-    const randomId = 'item-' + Math.random().toString(36).substr(2, 9)
-    setItems([...items, { id: randomId, description: '', qty: 1, price: 0 }])
+    setItems([...items, { id: Date.now(), description: '', qty: 1, price: 0 }])
   }
-  const removeItem = (id: string | number) => {
+  const removeItem = (id: number) => {
     setItems(items.filter((i) => i.id !== id))
   }
-  const updateItem = (id: string | number, field: keyof Item, value: any) => {
+  const updateItem = (id: number, field: keyof Item, value: string | number) => {
     setItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
-  /* =========================
+  /* ==========================================================================
      API ACTIONS (SAVE & DELETE)
-  ========================= */
+     ========================================================================== */
   const handleSaveQuotation = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedCompany || !selectedEmployee || !selectedBank) {
-      alert("Harap lengkapi entitas data master (Company, Employee, Bank)!")
+    if (selectedCompany === 0 || selectedEmployee === 0 || selectedBank === 0) {
+      alert("Harap pilih Company, Employee, dan Bank Account yang valid sebelum menyimpan!")
       return
     }
 
@@ -213,42 +239,47 @@ function QuotationPage() {
       setSubmitting(true)
       setErrorMsg('')
 
-      // Bersihkan properti ID lokal temporer agar tidak merusak validasi tipe data integer/increment di server backend
-      const cleanedItems = items.map(({ description, qty, price }) => ({
+      const cleanItems = items.map(({ description, qty, price }) => ({
         description,
         qty: Number(qty),
         price: Number(price)
       }))
 
+      const pureDate = date.includes('T') ? date.split('T')[0] : date
+      const isoDateTimeString = `${pureDate}T00:00:00Z`
+
+      // 🛠️ FIX AMAN: Paksa konversi Number() agar tidak memicu HTTP 500 Internal Server Error di Go backend
       const payload = {
         quote_number: quoteNumber,
-        date,
+        date: isoDateTimeString,
         customer_name: customerName,
         customer_company: customerCompany,
         company_id: Number(selectedCompany),
         employee_id: Number(selectedEmployee),
         bank_account_id: Number(selectedBank),
-        discount_percent: Number(discountPercent),
-        vat_percent: Number(vatPercent),
-        items: cleanedItems,
+        discount_percent: Number(discountPercent || 0),
+        vat_percent: Number(vatPercent || 0),
+        items: cleanItems,
+        grand_total: Number(grandTotalValue)
       }
 
       if (editId) {
-        await api.put(`/quotations/${editId}`, payload)
-        setSuccessMsg("Quotation berhasil diperbarui!")
+        await api.put(`/quotations/${editId}/`, payload)
+        setSuccessMsg("Quotation berhasil diperbarui! 🎉")
       } else {
-        await api.post('/quotations', payload)
-        setSuccessMsg("Quotation baru berhasil disimpan ke database!")
+        await api.post('/quotations/', payload)
+        setSuccessMsg("Quotation baru berhasil disimpan ke database! 🚀")
       }
 
       resetForm()
-      await loadAllData()
       setActiveTab('list')
+      setCurrentPage(1)
+      await loadAllData()
 
       setTimeout(() => setSuccessMsg(''), 4000)
     } catch (err: any) {
-      console.error(err)
-      setErrorMsg(err.response?.data?.message || "Gagal menyimpan berkas quotation ke server backend. Cek kembali kelengkapan field data.")
+      const messageFromServer = err.response?.data?.error || err.response?.data?.message || err.message
+      setErrorMsg(typeof messageFromServer === 'string' ? messageFromServer : "Gagal menyimpan berkas quotation.")
     } finally {
       setSubmitting(false)
     }
@@ -257,34 +288,35 @@ function QuotationPage() {
   const handleDeleteQuotation = async (id: number) => {
     if (!confirm("Apakah Anda yakin ingin menghapus arsip data penawaran ini?")) return
     try {
-      await api.delete(`/quotations/${id}`)
-      setQuotations(quotations.filter((q) => q.id !== id))
-      setSuccessMsg("Arsip data berhasil dihapus.")
+      setLoading(true)
+      await api.delete(`/quotations/${id}`) 
+      setSuccessMsg("Arsip data berhasil dihapus. 🗑️")
+      await loadAllData()
       setTimeout(() => setSuccessMsg(''), 3000)
-    } catch (err) {
-      alert("Gagal menghapus data dari server.")
+    } catch (err: any) {
+      const serverMessage = err.response?.data?.error || err.response?.data?.message || err.message
+      alert(`Gagal menghapus data dari server: ${serverMessage}`)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleEditClick = (quote: QuotationData) => {
     setEditId(quote.id)
     setQuoteNumber(quote.quote_number)
-    setDate(quote.date)
+    setDate(quote.date ? quote.date.split('T')[0] : new Date().toISOString().split('T')[0])
     setCustomerName(quote.customer_name)
     setCustomerCompany(quote.customer_company)
     setSelectedCompany(quote.company_id)
     setSelectedEmployee(quote.employee_id)
     setSelectedBank(quote.bank_account_id)
-    setDiscountPercent(quote.discount_percent)
-    setVatPercent(quote.vat_percent)
+    setDiscountPercent(Number(quote.discount_percent || 0))
+    setVatPercent(Number(quote.vat_percent || 0))
     
     if (typeof quote.items === 'string') {
-      try { 
-        const parsed = JSON.parse(quote.items)
-        setItems(parsed.map((item: any, idx: number) => ({ ...item, id: item.id || `edit-${idx}` })))
-      } catch { setItems([]) }
+      try { setItems(JSON.parse(quote.items)) } catch { setItems([]) }
     } else {
-      setItems((quote.items || []).map((item, idx) => ({ ...item, id: item.id || `edit-${idx}` })))
+      setItems(quote.items || [])
     }
     setActiveTab('form')
   }
@@ -299,7 +331,9 @@ function QuotationPage() {
     setCustomerName('')
     setCustomerCompany('')
     setDiscountPercent(0)
-    setItems([{ id: 'init-1', description: '', qty: 1, price: 0 }])
+    setVatPercent(11)
+    setDate(new Date().toISOString().split('T')[0])
+    setItems([{ id: Date.now(), description: '', qty: 1, price: 0 }])
     if (companies.length > 0) initFormDefaults(companies[0].id)
   }
 
@@ -363,13 +397,29 @@ function QuotationPage() {
       </div>
 
       {/* ==========================================================================
-         TAB 1: DIRECTORY LIST TABLE
-         ========================================================================== */}
+          TAB 1: DIRECTORY LIST TABLE
+          ========================================================================= */}
       {activeTab === 'list' && (
         <div className="bg-white rounded-3xl border shadow-sm p-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-black text-slate-800">Quotation Data Directory</h2>
-            <p className="text-xs text-slate-500">Daftar rekapan seluruh arsip invoice penawaran harga perusahaan yang tersimpan di sistem.</p>
+          <div className="mb-4 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black text-slate-800">Quotation Data Directory</h2>
+              <p className="text-xs text-slate-500">Daftar rekapan seluruh arsip invoice penawaran harga perusahaan.</p>
+            </div>
+            <div className="flex items-center gap-2 print:hidden">
+              <span className="text-xs font-bold text-slate-500 uppercase">Filter PT:</span>
+              <select
+                value={selectedCompany}
+                onChange={(e) => {
+                  setSelectedCompany(Number(e.target.value))
+                  setCurrentPage(1)
+                  setTimeout(() => { loadAllData() }, 50)
+                }}
+                className="px-3 py-2 border rounded-xl bg-slate-50 text-xs font-bold text-slate-700"
+              >
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200">
@@ -385,27 +435,23 @@ function QuotationPage() {
               <tbody className="text-sm divide-y">
                 {quotations.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-400 font-medium">Tidak ada data penawaran yang ditemukan. Klik tab Create untuk menambah baru.</td>
+                    <td colSpan={4} className="p-8 text-center text-slate-400 font-medium">Tidak ada data penawaran.</td>
                   </tr>
                 ) : (
                   quotations.map((q) => (
                     <tr key={q.id} className="hover:bg-slate-50 font-medium text-slate-800">
-                      <td className="p-4 font-mono font-bold text-sky-600">{q.quote_number}</td>
+                      <td className="p-4 font-mono font-bold text-sky-600">{q.quote_number || q.id}</td>
                       <td className="p-4">
-                        <div className="font-bold text-slate-900">{q.customer_name}</div>
-                        <div className="text-xs text-slate-500">{q.customer_company}</div>
+                        <div className="font-bold text-slate-900">{q.customer_name || 'No Name'}</div>
+                        <div className="text-xs text-slate-500">{q.customer_company || '-'}</div>
                       </td>
-                      <td className="p-4 text-slate-600">{q.date}</td>
+                      <td className="p-4 text-slate-600">{q.date ? q.date.split('T')[0] : '-'}</td>
                       <td className="p-4 text-right flex justify-end gap-2">
                         <button type="button" onClick={() => handleTriggerPrintPreview(q)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-200 flex items-center gap-1 text-xs font-bold transition-all">
                           <Eye size={14} /> View Detail & Print
                         </button>
-                        <button type="button" onClick={() => handleEditClick(q)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg border border-amber-200 text-xs font-bold transition-all">
-                          Edit
-                        </button>
-                        <button type="button" onClick={() => handleDeleteQuotation(q.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-all">
-                          <Trash2 size={14} />
-                        </button>
+                        <button type="button" onClick={() => handleEditClick(q)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg border border-amber-200 text-xs font-bold transition-all">Edit</button>
+                        <button type="button" onClick={() => handleDeleteQuotation(q.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-all"><Trash2 size={14} /></button>
                       </td>
                     </tr>
                   ))
@@ -413,12 +459,41 @@ function QuotationPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <div className="text-xs text-slate-500 font-bold">
+              Menampilkan <span className="text-slate-800">{quotations.length}</span> dari <span className="text-slate-800">{totalItems}</span> data.
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 text-xs font-bold border rounded-lg bg-white disabled:opacity-50 hover:bg-slate-50"
+              >Sebelumnya</button>
+              {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pNum) => (
+                <button
+                  key={pNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pNum)}
+                  className={`px-3 py-1.5 text-xs font-bold border rounded-lg transition-all ${currentPage === pNum ? 'bg-sky-600 border-sky-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+                >{pNum}</button>
+              ))}
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1.5 text-xs font-bold border rounded-lg bg-white disabled:opacity-50 hover:bg-slate-50"
+              >Selanjutnya</button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ==========================================================================
-         TAB 2: INPUT FORM AREA
-         ========================================================================== */}
+          TAB 2: INPUT FORM AREA
+          ========================================================================= */}
       {activeTab === 'form' && (
         <form onSubmit={handleSaveQuotation} className="bg-white rounded-3xl shadow-sm border p-6">
           <div className="flex items-center gap-3 mb-6 border-b pb-4">
@@ -434,11 +509,8 @@ function QuotationPage() {
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Company Master</label>
               <select
                 value={selectedCompany}
-                onChange={(e) => {
-                  const companyId = +e.target.value
-                  initFormDefaults(companyId)
-                }}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700 focus:ring-2 focus:ring-sky-500"
+                onChange={(e) => initFormDefaults(Number(e.target.value))}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
               >
                 <option value={0}>Pilih Perusahaan Master</option>
                 {companies.map((c) => <option key={c.id} value={c.id}>{c.legal_name}</option>)}
@@ -449,9 +521,8 @@ function QuotationPage() {
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Prepared By</label>
               <select
                 value={selectedEmployee}
-                onChange={(e) => setSelectedEmployee(+e.target.value)}
+                onChange={(e) => setSelectedEmployee(Number(e.target.value))}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
-                disabled={filteredEmployees.length === 0}
               >
                 <option value={0}>Pilih Karyawan</option>
                 {filteredEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -462,9 +533,8 @@ function QuotationPage() {
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Bank Account</label>
               <select
                 value={selectedBank}
-                onChange={(e) => setSelectedBank(+e.target.value)}
+                onChange={(e) => setSelectedBank(Number(e.target.value))}
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
-                disabled={filteredBanks.length === 0}
               >
                 <option value={0}>Pilih Rekening</option>
                 {filteredBanks.map((b) => <option key={b.id} value={b.id}>{b.bank_name} - {b.account_number}</option>)}
@@ -521,11 +591,11 @@ function QuotationPage() {
                   </div>
                   <div className="md:col-span-2 flex flex-col gap-1">
                     <span className="text-[11px] font-bold text-slate-400">Qty</span>
-                    <input type="number" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', +e.target.value)} className="w-full border rounded-xl p-2.5 bg-white font-bold text-sm text-slate-700" required />
+                    <input type="number" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', Number(e.target.value))} className="w-full border rounded-xl p-2.5 bg-white font-bold text-sm text-slate-700" required />
                   </div>
                   <div className="md:col-span-3 flex flex-col gap-1">
                     <span className="text-[11px] font-bold text-slate-400">Harga Satuan</span>
-                    <input type="number" value={item.price} onChange={(e) => updateItem(item.id, 'price', +e.target.value)} className="w-full border rounded-xl p-2.5 bg-white font-bold text-sm text-slate-700" required />
+                    <input type="number" value={item.price} onChange={(e) => updateItem(item.id, 'price', Number(e.target.value))} className="w-full border rounded-xl p-2.5 bg-white font-bold text-sm text-slate-700" required />
                   </div>
                   <div className="md:col-span-1 flex flex-col justify-end h-full self-end">
                     <button type="button" onClick={() => removeItem(item.id)} className="bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-200 rounded-xl p-3 transition-all flex items-center justify-center">
@@ -547,13 +617,14 @@ function QuotationPage() {
       )}
 
       {/* ==========================================================================
-         TAB 3: DETAIL VIEW & PRINT DOCUMENT
-         ========================================================================== */}
+          TAB 3: DETAIL VIEW & PRINT DOCUMENT
+          ========================================================================= */}
       {activeTab === 'print' && selectedQuotationForPrint && (() => {
         const q = selectedQuotationForPrint
-        const printComp = companies.find((c) => c.id === q.company_id)
-        const printEmp = employees.find((e) => e.id === q.employee_id)
-        const printBank = bankAccounts.find((b) => b.id === q.bank_account_id)
+        
+        const printComp = companies.find((c) => c.id === q.company_id) || { legal_name: 'NAMA PERUSAHAAN', tagline: '', address: '', email: '', website: '', logo: '' }
+        const printEmp = employees.find((e) => e.id === q.employee_id) || { name: '___________________', phone: '-', email: '-', position: '' }
+        const printBank = bankAccounts.find((b) => b.id === q.bank_account_id) || { bank_name: '-', account_number: '-', account_name: '-' }
         
         let parsedItems: Item[] = []
         if (typeof q.items === 'string') {
@@ -562,16 +633,20 @@ function QuotationPage() {
           parsedItems = q.items || []
         }
 
-        const sTotal = parsedItems.reduce((acc, item) => acc + item.qty * item.price, 0)
-        const discValue = sTotal * (q.discount_percent / 100)
+        // 🛠️ COALESCING REVOLUTION: Deteksi variabel database secara real-time (snake_case / camelCase fallback)
+        const currentDiscountPercent = Number(q.discount_percent ?? (q as any).discountPercent ?? 0)
+        const currentVatPercent = Number(q.vat_percent ?? (q as any).vatPercent ?? 0)
+
+        const sTotal = parsedItems.reduce((acc, item) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+        const discValue = sTotal * (currentDiscountPercent / 100)
         const postDisc = sTotal - discValue
-        const taxValue = postDisc * (q.vat_percent / 100)
+        const taxValue = postDisc * (currentVatPercent / 100)
         const gTotal = postDisc + taxValue
 
         return (
           <div>
             <div className="bg-white p-4 border rounded-2xl mb-6 shadow-sm flex justify-between items-center print:hidden">
-              <span className="text-sm font-semibold text-slate-700">Pratinjau Dokumen Dokumen: <b className="font-mono">{q.quote_number}</b></span>
+              <span className="text-sm font-semibold text-slate-700">Pratinjau Dokumen: <b className="font-mono">{q.quote_number}</b></span>
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setActiveTab('list'); setSelectedQuotationForPrint(null); }} className="px-4 py-2 border rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 transition-colors">Kembali ke Daftar</button>
                 <button type="button" onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold text-xs shadow-md transition-all">
@@ -583,21 +658,21 @@ function QuotationPage() {
             <div id="real-print-area" className="bg-white max-w-[850px] mx-auto p-8 rounded-3xl shadow-sm border text-[12px] text-black leading-tight font-medium print:border-none print:shadow-none">
               <div className="flex justify-between items-start border-b-2 border-slate-300 pb-5">
                 <div className="flex gap-4 items-start max-w-[70%]">
-                  {printComp?.logo && <img src={printComp.logo} className="w-16 h-16 object-contain mt-1 rounded-lg" alt="Logo" />}
+                  {printComp.logo && <img src={printComp.logo} className="w-16 h-16 object-contain mt-1 rounded-lg" alt="Logo" />}
                   <div>
-                    <h1 className="font-black text-2xl uppercase tracking-wide text-slate-900">{printComp?.legal_name || 'NAMA PERUSAHAAN'}</h1>
-                    {printComp?.tagline && <p className="text-[11px] font-bold text-slate-500 italic mb-1">{printComp.tagline}</p>}
-                    <p className="text-slate-800 font-semibold leading-normal mt-1">{printComp?.address}</p>
+                    <h1 className="font-black text-2xl uppercase tracking-wide text-slate-900">{printComp.legal_name}</h1>
+                    {printComp.tagline && <p className="text-[11px] font-bold text-slate-500 italic mb-1">{printComp.tagline}</p>}
+                    <p className="text-slate-800 font-semibold leading-normal mt-1">{printComp.address}</p>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-[11px] font-bold">
-                      {printComp?.email && <span className="flex items-center gap-1"><Mail size={12} /> {printComp.email}</span>}
-                      {printComp?.website && <span className="flex items-center gap-1"><Globe size={12} /> {printComp.website}</span>}
+                      {printComp.email && <span className="flex items-center gap-1"><Mail size={12} /> {printComp.email}</span>}
+                      {printComp.website && <span className="flex items-center gap-1"><Globe size={12} /> {printComp.website}</span>}
                     </div>
                   </div>
                 </div>
                 <div className="text-right min-w-[25%]">
                   <h2 className="font-black text-2xl tracking-wider text-slate-900 border-b-2 border-slate-900 pb-1 mb-2">QUOTATION</h2>
                   <div className="space-y-1 text-[11px] font-bold">
-                    <div className="flex justify-between gap-3"><span className="text-slate-500">DATE :</span><span>{q.date}</span></div>
+                    <div className="flex justify-between gap-3"><span className="text-slate-500">DATE :</span><span>{q.date ? q.date.split('T')[0] : '-'}</span></div>
                     <div className="flex justify-between gap-3"><span className="text-slate-500">QUOTE NO :</span><span className="font-mono text-slate-900 font-black">{q.quote_number}</span></div>
                   </div>
                 </div>
@@ -605,9 +680,9 @@ function QuotationPage() {
 
               <div className="flex justify-between mt-6 text-[11px] font-semibold border-b border-dashed border-slate-200 pb-4">
                 <div className="space-y-1">
-                  <p><span className="text-slate-500 font-bold">Prepared by :</span> <span className="font-black text-slate-900 uppercase">{printEmp?.name || '-'}</span></p>
-                  <p><span className="text-slate-500 font-bold">Phone :</span> <span className="text-slate-900">{printEmp?.phone || '-'}</span></p>
-                  <p><span className="text-slate-500 font-bold">Email :</span> <span className="text-slate-900">{printEmp?.email || '-'}</span></p>
+                  <p><span className="text-slate-500 font-bold">Prepared by :</span> <span className="font-black text-slate-900 uppercase">{printEmp.name}</span></p>
+                  <p><span className="text-slate-500 font-bold">Phone :</span> <span className="text-slate-900">{printEmp.phone}</span></p>
+                  <p><span className="text-slate-500 font-bold">Email :</span> <span className="text-slate-900">{printEmp.email}</span></p>
                 </div>
                 <div className="text-right space-y-0.5">
                   <p className="text-slate-500 font-bold uppercase tracking-wider">To / Kepada Yth :</p>
@@ -618,7 +693,7 @@ function QuotationPage() {
 
               <div className="mt-4 text-[11px] text-slate-900 font-semibold">
                 <p>Dengan hormat,</p>
-                <p className="mt-1">Bersama ini kami dari <b className="font-black text-black">{printComp?.legal_name}</b> mengajukan penawaran harga dengan rincian sebagai berikut :</p>
+                <p className="mt-1">Bersama ini kami dari <b className="font-black text-black">{printComp.legal_name}</b> mengajukan penawaran harga dengan rincian sebagai berikut :</p>
               </div>
 
               <table className="w-full border-collapse border-2 border-slate-900 mt-4 text-[11px]">
@@ -633,7 +708,7 @@ function QuotationPage() {
                 </thead>
                 <tbody>
                   {parsedItems.map((item, index) => (
-                    <tr key={item.id} className="text-slate-900 font-semibold border-b border-slate-300 break-inside-avoid">
+                    <tr key={item.id || index} className="text-slate-900 font-semibold border-b border-slate-300 break-inside-avoid">
                       <td className="border border-slate-300 p-2 text-center font-bold">{index + 1}</td>
                       <td className="border border-slate-300 p-2 whitespace-pre-line leading-normal text-slate-950">{item.description}</td>
                       <td className="border border-slate-300 p-2 text-center font-black">{item.qty}</td>
@@ -641,25 +716,79 @@ function QuotationPage() {
                       <td className="border border-slate-300 p-2 font-black text-slate-950">{renderCurrency(item.qty * item.price)}</td>
                     </tr>
                   ))}
+                  
+                 {/* 1. TOTAL */}
                   <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
                     <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">Total</td>
-                    <td className="border border-slate-300 p-2 font-black text-slate-950">{renderCurrency(sTotal)}</td>
+                    <td className="border border-slate-300 p-2 font-black text-slate-950">
+                      {(() => {
+                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
+                        const calculatedSubTotal = Array.isArray(activeItems) 
+                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+                          : 0;
+                        return renderCurrency(calculatedSubTotal);
+                      })()}
+                    </td>
                   </tr>
-                  {q.discount_percent > 0 && (
-                    <tr className="text-red-700 font-bold bg-white">
-                      <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">Discount ({q.discount_percent}%)</td>
-                      <td className="border border-slate-300 p-2 font-black">{renderCurrency(discValue, '-')}</td>
-                    </tr>
-                  )}
-                  {q.vat_percent > 0 && (
-                    <tr className="text-slate-900 font-bold bg-white">
-                      <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">VAT ({q.vat_percent}%)</td>
-                      <td className="border border-slate-300 p-2 font-black text-slate-950">{renderCurrency(taxValue)}</td>
-                    </tr>
-                  )}
+                  
+                  {/* 2. DISCOUNT */}
+                  <tr className="text-red-700 font-bold bg-white">
+                    <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">
+                      Discount ({Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0)}%)
+                    </td>
+                    <td className="border border-slate-300 p-2 font-black">
+                      {(() => {
+                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
+                        const calculatedSubTotal = Array.isArray(activeItems)
+                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+                          : 0;
+                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
+                        const calculatedDiscValue = calculatedSubTotal * (activeDiscountPercent / 100);
+                        return renderCurrency(calculatedDiscValue, '-');
+                      })()}
+                    </td>
+                  </tr>
+
+                  {/* 3. VAT / PPN */}
+                  <tr className="text-slate-900 font-bold bg-white">
+                    <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">
+                      VAT / PPN ({Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0)}%)
+                    </td>
+                    <td className="border border-slate-300 p-2 font-black text-slate-950">
+                      {(() => {
+                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
+                        const calculatedSubTotal = Array.isArray(activeItems)
+                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+                          : 0;
+                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
+                        const priceAfterDiscount = calculatedSubTotal - (calculatedSubTotal * (activeDiscountPercent / 100));
+                        
+                        const activeVatPercent = Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0);
+                        const calculatedTaxValue = priceAfterDiscount * (activeVatPercent / 100);
+                        return renderCurrency(calculatedTaxValue);
+                      })()}
+                    </td>
+                  </tr>
+
+                  {/* 4. GRAND TOTAL */}
                   <tr className="bg-slate-100 text-slate-900 border-t-2 border-slate-900 font-black">
                     <td colSpan={4} className="border border-slate-900 p-2.5 text-right text-sm uppercase">Grand Total</td>
-                    <td className="border border-slate-900 p-2.5 font-black text-sm bg-slate-100">{renderCurrency(gTotal)}</td>
+                    <td className="border border-slate-900 p-2.5 font-black text-sm bg-slate-100">
+                      {(() => {
+                        if (selectedQuotationForPrint?.grand_total) {
+                          return renderCurrency(Number(selectedQuotationForPrint.grand_total));
+                        }
+                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
+                        const calculatedSubTotal = Array.isArray(activeItems)
+                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+                          : 0;
+                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
+                        const priceAfterDiscount = calculatedSubTotal - (calculatedSubTotal * (activeDiscountPercent / 100));
+                        const activeVatPercent = Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0);
+                        const calculatedGrandTotal = priceAfterDiscount + (priceAfterDiscount * (activeVatPercent / 100));
+                        return renderCurrency(calculatedGrandTotal);
+                      })()}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -667,16 +796,16 @@ function QuotationPage() {
               <div className="mt-6 flex justify-between items-start break-inside-avoid">
                 <div className="text-[11px]">
                   <h2 className="font-black text-slate-900 border-b border-slate-900 pb-0.5 mb-2 w-40 uppercase tracking-wider">Payment Info</h2>
-                  <p><span className="text-slate-500 font-semibold">Bank:</span> <span className="font-black uppercase">{printBank?.bank_name || '-'}</span></p>
-                  <p><span className="text-slate-500 font-semibold">A/C No:</span> <span className="font-mono font-black">{printBank?.account_number || '-'}</span></p>
-                  <p><span className="text-slate-500 font-semibold">A/C Name:</span> <span className="font-black uppercase">{printBank?.account_name || '-'}</span></p>
+                  <p><span className="text-slate-500 font-semibold">Bank:</span> <span className="font-black uppercase">{printBank.bank_name}</span></p>
+                  <p><span className="text-slate-500 font-semibold">A/C No:</span> <span className="font-mono font-black">{printBank.account_number}</span></p>
+                  <p><span className="text-slate-500 font-semibold">A/C Name:</span> <span className="font-black uppercase">{printBank.account_name}</span></p>
                 </div>
                 <div className="text-center min-w-[200px]">
                   <p className="text-slate-500">Sincerely,</p>
-                  <p className="font-black text-black uppercase mt-0.5">{printComp?.legal_name}</p>
+                  <p className="font-black text-black uppercase mt-0.5">{printComp.legal_name}</p>
                   <div className="h-16" />
-                  <p className="font-black text-black border-b border-black pb-0.5 inline-block px-4 uppercase">{printEmp?.name}</p>
-                  {printEmp?.position && <p className="text-slate-500 font-bold italic text-[10px]">{printEmp.position}</p>}
+                  <p className="font-black text-black border-b border-black pb-0.5 inline-block px-4 uppercase">{printEmp.name}</p>
+                  {printEmp.position && <p className="text-slate-500 font-bold italic text-[10px]">{printEmp.position}</p>}
                 </div>
               </div>
             </div>

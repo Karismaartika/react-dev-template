@@ -12,7 +12,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { 
+import api, { 
   createEmployee, 
   deleteEmployee, 
   getEmployees, 
@@ -26,11 +26,10 @@ export const Route = createFileRoute('/employee')({
 /* =========================
    TYPES
 ========================= */
-
 type Company = {
   id: number
   name: string
-  legalName: string
+  legal_name: string // Disamakan menjadi snake_case agar sesuai dengan database backend
   address: string
   email: string
   phone: string
@@ -49,7 +48,6 @@ type Employee = {
 /* =========================
    COMPONENT
 ========================= */
-
 function EmployeePage() {
   const [search, setSearch] = useState('')
   const [companies, setCompanies] = useState<Company[]>([])
@@ -57,34 +55,60 @@ function EmployeePage() {
   const [isEdit, setIsEdit] = useState(false)
   const [editId, setEditId] = useState<string | number | null>(null)
   const [openModal, setOpenModal] = useState(false)
+  const [loadingCompanies, setLoadingCompanies] = useState(false)
 
   const [form, setForm] = useState<Omit<Employee, 'id'>>({
     name: '',
     email: '',
     phone: '',
-    company_id: 1,
+    company_id: 0, // Di-set default 0 sebelum data perusahaan ter-load
   })
 
   /* =========================
      EFFECT LOGIC
   ========================= */
-
   useEffect(() => {
-    const savedCompanies = localStorage.getItem('companies')
-    if (savedCompanies) {
-      const parsedCompanies = JSON.parse(savedCompanies)
-      setCompanies(parsedCompanies)
-      if (parsedCompanies.length > 0) {
-        setForm((prev) => ({ ...prev, company_id: parsedCompanies[0].id }))
-      }
-    }
-    loadEmployees()
+    // Memanggil fungsi sinkronisasi master data dari API backend dan lokal
+    loadInitialData()
   }, [])
+
+  const loadInitialData = async () => {
+    try {
+      setLoadingCompanies(true)
+      
+      // 1. Ambil data seluruh Perusahaan (PT) langsung dari API Backend server secara Realtime
+      const resCompany = await api.get('/companies')
+      const fetchedCompanies: Company[] = resCompany.data?.data || resCompany.data || []
+      
+      setCompanies(fetchedCompanies)
+
+      // 2. Set default company_id di form jika data perusahaan tersedia
+      if (fetchedCompanies.length > 0) {
+        setForm((prev) => ({ ...prev, company_id: fetchedCompanies[0].id }))
+      }
+    } catch (error) {
+      console.error('Gagal mengambil data master kumpuan PT dari API:', error)
+      
+      // Fallback jika API bermasalah, baca dari localStorage
+      const savedCompanies = localStorage.getItem('companies')
+      if (savedCompanies) {
+        const parsed = JSON.parse(savedCompanies)
+        setCompanies(parsed)
+        if (parsed.length > 0) {
+          setForm((prev) => ({ ...prev, company_id: parsed[0].id }))
+        }
+      }
+    } finally {
+      setLoadingCompanies(false)
+    }
+
+    // 3. Ambil data karyawan dari database
+    await loadEmployees()
+  }
 
   /* =========================
      LOAD EMPLOYEE API
   ========================= */
-
   const loadEmployees = async () => {
     try {
       const response = await getEmployees()
@@ -98,7 +122,6 @@ function EmployeePage() {
   /* =========================
      FILTER
   ========================= */
-
   const filteredData = employees.filter(
     (emp) =>
       emp.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -108,7 +131,6 @@ function EmployeePage() {
   /* =========================
      HANDLE CHANGE
   ========================= */
-
   const handleChange = (
     e:
       | React.ChangeEvent<HTMLInputElement>
@@ -124,12 +146,11 @@ function EmployeePage() {
   /* =========================
      SUBMIT (CONNECTED TO API)
   ========================= */
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.name || !form.email || !form.phone) {
-      alert('Semua field wajib diisi')
+    if (!form.name || !form.email || !form.phone || Number(form.company_id) === 0) {
+      alert('Semua field termasuk pilihan PT wajib diisi!')
       return
     }
 
@@ -153,7 +174,6 @@ function EmployeePage() {
   /* =========================
      EDIT TRIGGER
   ========================= */
-
   const handleEdit = (emp: Employee) => {
     setForm({
       name: emp.name,
@@ -169,7 +189,6 @@ function EmployeePage() {
   /* =========================
      DELETE (CONNECTED TO API)
   ========================= */
-
   const handleDelete = async (id: string | number) => {
     if (confirm('Apakah yakin ingin menghapus employee dari database?')) {
       try {
@@ -186,13 +205,12 @@ function EmployeePage() {
   /* =========================
      RESET FORM
   ========================= */
-
   const resetForm = () => {
     setForm({
       name: '',
       email: '',
       phone: '',
-      company_id: companies.length > 0 ? companies[0].id : 1,
+      company_id: companies.length > 0 ? companies[0].id : 0,
     })
     setIsEdit(false)
     setEditId(null)
@@ -214,7 +232,12 @@ function EmployeePage() {
           </div>
 
           <button
-            onClick={() => setOpenModal(true)}
+            onClick={() => {
+              if (companies.length === 0) {
+                alert('Sistem sedang memuat data PT atau daftar PT kosong di database.')
+              }
+              setOpenModal(true)
+            }}
             className="bg-sky-600 hover:bg-sky-700 text-white px-5 py-3 rounded-2xl flex items-center gap-2 shadow-lg transition-all"
           >
             <Plus size={18} />
@@ -300,7 +323,7 @@ function EmployeePage() {
                         <Building2 size={16} />
                         {
                           companies.find((c) => Number(c.id) === Number(emp.company_id))
-                            ?.legalName || 'Unknown Company'
+                            ?.legal_name || 'Unknown Company'
                         }
                       </div>
                     </td>
@@ -412,11 +435,17 @@ function EmployeePage() {
                   onChange={handleChange}
                   className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
                 >
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.legalName}
-                    </option>
-                  ))}
+                  {loadingCompanies ? (
+                    <option>Loading seluruh daftar PT...</option>
+                  ) : companies.length === 0 ? (
+                    <option value={0}>Tidak ada PT terdaftar di basis data</option>
+                  ) : (
+                    companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.legal_name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

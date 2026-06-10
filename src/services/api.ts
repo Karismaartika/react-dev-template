@@ -56,6 +56,24 @@ apiQuotation.interceptors.response.use(
   },
 )
 
+// Interceptor untuk menangkap error response
+apiQuotation.interceptors.response.use(
+  (response) => response,
+
+  (error) => {
+    if (error.response?.status === 401) {
+      // hapus token
+      localStorage.removeItem('token')
+      localStorage.removeItem('loggedIn')
+
+      // redirect ke login
+      window.location.href = '/login'
+    }
+
+    return Promise.reject(error)
+  },
+)
+
 // =================================================================
 // 3. FUNGSI CRUD LOGISTIK BANK ACCOUNT
 // =================================================================
@@ -119,6 +137,48 @@ export const updateEmployee = async (id: string, employeeData: any) => {
 
 export const deleteEmployee = async (id: string) => {
   const response = await apiQuotation.delete(`/employees/${id}`)
+  return response.data
+}
+
+// =================================================================
+// 6. FUNGSI CRUD QUOTATION (SUDAH FIXED ANTI-REDIRECT & MULTITENANT 🚀)
+// =================================================================
+
+/**
+ * Mengambil list data quotation dari server berdasarkan Company ID
+ */
+export const getQuotations = async (companyId?: number) => {
+  // Ditambahkan slas akhir '/' dan parameter filter company_id agar tidak kosong
+  const response = await apiQuotation.get('/quotations/', {
+    params: companyId ? { company_id: companyId } : undefined
+  })
+  return response.data
+}
+
+/**
+ * Mengirim berkas data form quotation generator baru ke database server
+ */
+export const createQuotation = async (quotationData: any) => {
+  // Wajib pakai slas akhir '/' biar gak kena redirect 307 Nginx
+  const response = await apiQuotation.post('/quotations/', quotationData)
+  return response.data
+}
+
+/**
+ * Mengubah atau memperbarui isi data quotation yang sudah tersimpan
+ */
+export const updateQuotation = async (id: string | number, quotationData: any) => {
+  // Wajib pakai slas akhir '/' setelah ID
+  const response = await apiQuotation.put(`/quotations/${id}/`, quotationData)
+  return response.data
+}
+
+/**
+ * Menghapus data berkas quotation berdasarkan ID-nya
+ */
+export const deleteQuotation = async (id: string | number) => {
+  // Wajib pakai slas akhir '/' setelah ID
+  const response = await apiQuotation.delete(`/quotations/${id}/`)
   return response.data
 }
 
