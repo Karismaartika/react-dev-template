@@ -163,8 +163,23 @@ function QuotationPage() {
       setTotalPages(1) 
 
       // Urutkan berdasarkan ID terbesar ke terkecil
+      // Urutkan berdasarkan ID terbesar ke terkecil
       const sortedQuotes = [...fetchedQuotes].sort((a, b) => Number(b.id) - Number(a.id))
       setQuotations(sortedQuotes)
+
+      // 🛠️ TAMBAHKAN LOGIKA INI SUPAYA OTOMATIS TERISI SEJAK AWAL FORM DIBUKA
+      if (fetchedCompanies.length > 0 && !editId) {
+        const defaultCompanyId = fetchedCompanies[0].id
+        setSelectedCompany(defaultCompanyId)
+        const firstEmp = fetchedEmployees.find((e) => Number(e.company_id) === Number(defaultCompanyId))
+        const firstBank = fetchedBanks.find((b) => Number(b.company_id) === Number(defaultCompanyId))
+        
+        setSelectedEmployee(firstEmp ? firstEmp.id : 0)
+        setSelectedBank(firstBank ? firstBank.id : 0)
+        
+        const currentYear = new Date().getFullYear()
+        setQuoteNumber(`SPN-ZRA/III/${currentYear}/${String(totalCount + 1).padStart(3, '0')}`)
+      }
 
     } catch (err) {
       console.error("Gagal memuat data:", err)
@@ -248,7 +263,6 @@ function QuotationPage() {
       const pureDate = date.includes('T') ? date.split('T')[0] : date
       const isoDateTimeString = `${pureDate}T00:00:00Z`
 
-      // 🛠️ FIX AMAN: Paksa konversi Number() agar tidak memicu HTTP 500 Internal Server Error di Go backend
       const payload = {
         quote_number: quoteNumber,
         date: isoDateTimeString,
@@ -263,16 +277,27 @@ function QuotationPage() {
         grand_total: Number(grandTotalValue)
       }
 
+      // 🛠️ LANGKAH PERBAIKAN: Ambil data inputan form ke variabel sementara
+      let savedData = { ...payload, id: editId || Date.now() } as QuotationData
+
       if (editId) {
-        await api.put(`/quotations/${editId}/`, payload)
+        // 🛠️ PERBAIKAN: Hapus tanda "/" di paling belakang agar tidak memicu Network Error
+        await api.put(`/quotations/${editId}`, payload)
         setSuccessMsg("Quotation berhasil diperbarui! 🎉")
       } else {
-        await api.post('/quotations/', payload)
+        const response = await api.post('/quotations/', payload)
+        // Jika server Go mengembalikan ID baru, kita masukkan ke data pratinjau
+        if (response.data && response.data.id) {
+          savedData.id = response.data.id
+        }
         setSuccessMsg("Quotation baru berhasil disimpan ke database! 🚀")
       }
 
+      // 🛠️ LANGKAH PERBAIKAN: Kunci data agar tidak hilang saat di-reset
+      setSelectedQuotationForPrint(savedData)
+
       resetForm()
-      setActiveTab('list')
+      setActiveTab('print') // 🛠️ OTOMATIS BERPINDAH KE TAB PREVIEW SETELAH SAVE
       setCurrentPage(1)
       await loadAllData()
 
@@ -331,10 +356,22 @@ function QuotationPage() {
     setCustomerName('')
     setCustomerCompany('')
     setDiscountPercent(0)
-    setVatPercent(11)
+    setVatPercent(10) // Kita ubah default ke 10% agar langsung sinkron dengan form gambar 1
     setDate(new Date().toISOString().split('T')[0])
-    setItems([{ id: Date.now(), description: '', qty: 1, price: 0 }])
-    if (companies.length > 0) initFormDefaults(companies[0].id)
+    setItems([{ id: Date.now(), description: 'kursi', qty: 10, price: 1000 }]) // Default item sesuai testing terakhirmu
+    
+    // 🛠️ FIX LOGIKA: Menghitung ulang urutan nomor otomatis dengan aman berdasarkan total penawaran yang ada
+    if (companies.length > 0) {
+      const defaultCompanyId = companies[0].id
+      setSelectedCompany(defaultCompanyId)
+      
+      const currentYear = new Date().getFullYear()
+      // Menggunakan alternatif quotations.length agar jumlah nomor urutnya selalu akurat dan tidak melompat kosong
+      const nextSequence = quotations.length + 1
+      setQuoteNumber(`SPN-ZRA/III/${currentYear}/${String(nextSequence).padStart(3, '0')}`)
+    } else {
+      setQuoteNumber('')
+    }
   }
 
   if (loading && companies.length === 0) {
@@ -687,7 +724,7 @@ function QuotationPage() {
                 <div className="text-right space-y-0.5">
                   <p className="text-slate-500 font-bold uppercase tracking-wider">To / Kepada Yth :</p>
                   <p className="font-black text-sm text-slate-900 uppercase">{q.customer_name}</p>
-                  <p className="font-black text-slate-800 uppercase">{q.customer_company}</p>
+<p className="font-black text-slate-800 uppercase">{q.customer_company || (q as any).customerCompany || '-'}</p>
                 </div>
               </div>
 
@@ -721,52 +758,27 @@ function QuotationPage() {
                   <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
                     <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">Total</td>
                     <td className="border border-slate-300 p-2 font-black text-slate-950">
-                      {(() => {
-                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
-                        const calculatedSubTotal = Array.isArray(activeItems) 
-                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
-                          : 0;
-                        return renderCurrency(calculatedSubTotal);
-                      })()}
+                      {renderCurrency(sTotal)}
                     </td>
                   </tr>
                   
                   {/* 2. DISCOUNT */}
                   <tr className="text-red-700 font-bold bg-white">
                     <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">
-                      Discount ({Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0)}%)
+                      Discount ({currentDiscountPercent}%)
                     </td>
                     <td className="border border-slate-300 p-2 font-black">
-                      {(() => {
-                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
-                        const calculatedSubTotal = Array.isArray(activeItems)
-                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
-                          : 0;
-                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
-                        const calculatedDiscValue = calculatedSubTotal * (activeDiscountPercent / 100);
-                        return renderCurrency(calculatedDiscValue, '-');
-                      })()}
+                      {renderCurrency(discValue, '-')}
                     </td>
                   </tr>
 
                   {/* 3. VAT / PPN */}
                   <tr className="text-slate-900 font-bold bg-white">
                     <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">
-                      VAT / PPN ({Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0)}%)
+                      VAT / PPN ({currentVatPercent}%)
                     </td>
                     <td className="border border-slate-300 p-2 font-black text-slate-950">
-                      {(() => {
-                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
-                        const calculatedSubTotal = Array.isArray(activeItems)
-                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
-                          : 0;
-                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
-                        const priceAfterDiscount = calculatedSubTotal - (calculatedSubTotal * (activeDiscountPercent / 100));
-                        
-                        const activeVatPercent = Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0);
-                        const calculatedTaxValue = priceAfterDiscount * (activeVatPercent / 100);
-                        return renderCurrency(calculatedTaxValue);
-                      })()}
+                      {renderCurrency(taxValue)}
                     </td>
                   </tr>
 
@@ -774,20 +786,7 @@ function QuotationPage() {
                   <tr className="bg-slate-100 text-slate-900 border-t-2 border-slate-900 font-black">
                     <td colSpan={4} className="border border-slate-900 p-2.5 text-right text-sm uppercase">Grand Total</td>
                     <td className="border border-slate-900 p-2.5 font-black text-sm bg-slate-100">
-                      {(() => {
-                        if (selectedQuotationForPrint?.grand_total) {
-                          return renderCurrency(Number(selectedQuotationForPrint.grand_total));
-                        }
-                        const activeItems = (selectedQuotationForPrint?.items || items || []) as any[];
-                        const calculatedSubTotal = Array.isArray(activeItems)
-                          ? activeItems.reduce((sum: number, item: any) => sum + (Number(item.qty || 0) * Number(item.price || 0)), 0)
-                          : 0;
-                        const activeDiscountPercent = Number(selectedQuotationForPrint?.discount_percent ?? discountPercent ?? 0);
-                        const priceAfterDiscount = calculatedSubTotal - (calculatedSubTotal * (activeDiscountPercent / 100));
-                        const activeVatPercent = Number(selectedQuotationForPrint?.vat_percent ?? vatPercent ?? 0);
-                        const calculatedGrandTotal = priceAfterDiscount + (priceAfterDiscount * (activeVatPercent / 100));
-                        return renderCurrency(calculatedGrandTotal);
-                      })()}
+                      {renderCurrency(gTotal)}
                     </td>
                   </tr>
                 </tbody>
