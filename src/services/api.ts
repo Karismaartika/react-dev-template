@@ -147,10 +147,17 @@ export const deleteEmployee = async (id: string) => {
 /**
  * Mengambil list data quotation dari server berdasarkan Company ID
  */
-export const getQuotations = async (companyId?: number) => {
-  // Ditambahkan slas akhir '/' dan parameter filter company_id agar tidak kosong
+/**
+ * Mengambil list data quotation dari server dengan pagination limit 50, order by date desc, dan filter nama
+ * REVISI ZI-67 & ZI-68 🚀
+ */
+export const getQuotations = async (page: number = 1, limit: number = 50, customerName?: string) => {
   const response = await apiQuotation.get('/quotations/', {
-    params: companyId ? { company_id: companyId } : undefined
+    params: {
+      page: page,
+      limit: limit, // Mengunci default limit ke 50 sesuai instruksi mentor (ZI-67)
+      customer_name: customerName || undefined // Filter pencarian nama pelanggan (ZI-68)
+    }
   })
   return response.data
 }

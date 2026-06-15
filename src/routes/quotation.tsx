@@ -84,7 +84,6 @@ function QuotationPage() {
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [totalPages, setTotalPages] = useState<number>(1)
   const [totalItems, setTotalItems] = useState<number>(0)
-  const LIMIT_PER_PAGE = 10
 
   // Form Fields States
   const [editId, setEditId] = useState<number | null>(null)
@@ -135,11 +134,11 @@ function QuotationPage() {
       setEmployees(fetchedEmployees)
       setBankAccounts(fetchedBanks)
 
-      // 2. Fetch DATA QUOTATION - Set LIMIT ke 9999 agar keluar semua datanya tanpa batasan!
+      // 2. Fetch DATA QUOTATION - Set LIMIT ke 50 agar keluar semua datanya tanpa batasan!
       const resQuotes = await api.get('/quotations/', {
         params: {
           page: 1,
-          limit: 9999
+          limit: 50
         }
       }).catch((err) => {
         console.error("Gagal fetch quotations:", err)

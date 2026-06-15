@@ -168,16 +168,7 @@ function DashboardPage() {
               >
                 {item.icon}
               </div>
-              <span
-                style={{
-                  background: '#f1f5f9',
-                  padding: '6px 10px',
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-              >
-                Manage
-              </span>
+             
             </div>
 
             <h3 style={{ color: '#64748b' }}>{item.title}</h3>
