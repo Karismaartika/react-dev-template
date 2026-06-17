@@ -85,6 +85,9 @@ function QuotationPage() {
   const [totalPages, setTotalPages] = useState<number>(1)
   const [totalItems, setTotalItems] = useState<number>(0)
 
+  // ➕ TAMBAHKAN STATE FILTER BARU DI SINI
+  const [searchCustomer, setSearchCustomer] = useState<string>('')
+
   // Form Fields States
   const [editId, setEditId] = useState<number | null>(null)
   const [quoteNumber, setQuoteNumber] = useState('')
@@ -134,11 +137,12 @@ function QuotationPage() {
       setEmployees(fetchedEmployees)
       setBankAccounts(fetchedBanks)
 
-      // 2. Fetch DATA QUOTATION - Set LIMIT ke 50 agar keluar semua datanya tanpa batasan!
+      // 2. Fetch DATA QUOTATION - Sekarang mendukung Filter Nama Customer
       const resQuotes = await api.get('/quotations/', {
         params: {
           page: 1,
-          limit: 50
+          limit: 50,
+          customer_name: searchCustomer // 👈 Mengirim keyword text box ke Backend
         }
       }).catch((err) => {
         console.error("Gagal fetch quotations:", err)
@@ -188,9 +192,9 @@ function QuotationPage() {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
     loadAllData()
-  }, [currentPage])
+  }, [currentPage, searchCustomer]) // 👈 Menambahkan searchCustomer di sini
 
   const initFormDefaults = (companyId: number, emps = employees, banks = bankAccounts) => {
     setSelectedCompany(companyId)
@@ -442,19 +446,23 @@ function QuotationPage() {
               <h2 className="text-xl font-black text-slate-800">Quotation Data Directory</h2>
               <p className="text-xs text-slate-500">Daftar rekapan seluruh arsip invoice penawaran harga perusahaan.</p>
             </div>
-            <div className="flex items-center gap-2 print:hidden">
-              <span className="text-xs font-bold text-slate-500 uppercase">Filter PT:</span>
-              <select
-                value={selectedCompany}
-                onChange={(e) => {
-                  setSelectedCompany(Number(e.target.value))
-                  setCurrentPage(1)
-                  setTimeout(() => { loadAllData() }, 50)
-                }}
-                className="px-3 py-2 border rounded-xl bg-slate-50 text-xs font-bold text-slate-700"
-              >
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+            <div className="flex items-center gap-4 print:hidden">
+              {/* ➕ TEXT BOX FILTER CUSTOMER NAME */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase">Cari Customer:</span>
+                <input
+                  type="text"
+                  placeholder="Ketik nama customer..."
+                  value={searchCustomer}
+                  onChange={(e) => {
+                    setSearchCustomer(e.target.value)
+                    setCurrentPage(1) // Reset ke halaman 1 tiap kali mengetik
+                  }}
+                  className="px-3 py-2 border rounded-xl bg-slate-50 text-xs font-semibold text-slate-700 outline-sky-600 w-48 shadow-sm"
+                />
+              </div>
+
+              
             </div>
           </div>
 
