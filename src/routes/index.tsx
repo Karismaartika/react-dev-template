@@ -15,60 +15,48 @@ export const Route = createFileRoute('/')({
 })
 
 function DashboardPage() {
+  // 1. Ganti state lama dengan satu state objek ringkas sesuai format response BE
+  const [summary, setSummary] = useState({
+    bank_account: 0,
+    quotation: 0,
+    employee: 0,
+    company: 0
+  })
+  
+  // State cadangan untuk tabel rincian di bawah agar tidak eror kosong
   const [companies, setCompanies] = useState([])
   const [employees, setEmployees] = useState([])
   const [banks, setBanks] = useState([])
-  const [isCompanyLoading, setIsCompanyLoading] = useState(false)
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false)
 
   useEffect(() => {
-    setIsCompanyLoading(true)
+    setIsDashboardLoading(true)
+    
+    // 2. Panggil API Utama Baru: /dashboard-summary
     api
-      .get('/companies')
+      .get('/dashboard-summary')
       .then((res) => {
-        if (res.data && res.data.data) {
-          setCompanies(res.data.data)
-        } else {
-          setCompanies(res.data)
-        }
+        // Simpan seluruh data statistik ke state summary
+        setSummary(res.data)
       })
       .catch((err) => {
-        console.log(err)
+        console.error("Gagal memuat ringkasan dashboard:", err)
       })
       .finally(() => {
-        setIsCompanyLoading(false)
+        setIsDashboardLoading(false)
       })
 
-    api
-      .get('/employees')
-      .then((res) => {
-        if (res.data && res.data.data) {
-          setEmployees(res.data.data)
-        } else {
-          setEmployees(res.data)
-        }
-      })
-      .catch((err) => {
-        console.log(err)
-      })
-
-    api
-      .get('/bank_accounts')
-      .then((res) => {
-        if (res.data && res.data.data) {
-          setBanks(res.data.data)
-        } else {
-          setBanks(res.data)
-        }
-      })
-      .catch((err) => {
-        console.log(err)
-      })
+    // Tetap panggil endpoint ini khusus untuk mengisi baris DATA TABEL rincian di bawah
+    api.get('/companies').then((res) => setCompanies(res.data && res.data.data ? res.data.data : res.data)).catch(err => console.log(err))
+    api.get('/employees').then((res) => setEmployees(res.data && res.data.data ? res.data.data : res.data)).catch(err => console.log(err))
+    api.get('/bank_accounts').then((res) => setBanks(res.data && res.data.data ? res.data.data : res.data)).catch(err => console.log(err))
   }, [])
 
+  // 3. Petakan nilai dari state `summary` yang didapat langsung dari backend
   const stats = [
     {
       title: 'Company',
-      value: companies.length,
+      value: summary.company, // data real-time dari BE
       icon: '🏢',
       color: '#0ea5e9',
       bg: '#e0f2fe',
@@ -76,7 +64,7 @@ function DashboardPage() {
     },
     {
       title: 'Employee',
-      value: employees.length,
+      value: summary.employee, // data real-time dari BE
       icon: '👨‍💼',
       color: '#22c55e',
       bg: '#dcfce7',
@@ -84,7 +72,7 @@ function DashboardPage() {
     },
     {
       title: 'Bank Account',
-      value: banks.length,
+      value: summary.bank_account, // data real-time dari BE
       icon: '🏦',
       color: '#f97316',
       bg: '#ffedd5',
@@ -92,7 +80,7 @@ function DashboardPage() {
     },
     {
       title: 'Quotation',
-      value: 12,
+      value: summary.quotation, // SEKARANG SUDAH REAL-TIME! (Bukan angka 12 lagi)
       icon: '📄',
       color: '#ef4444',
       bg: '#fee2e2',
@@ -103,14 +91,7 @@ function DashboardPage() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
-        <h1
-          style={{
-            fontSize: 32,
-            fontWeight: 800,
-          }}
-        >
-          Dashboard
-        </h1>
+        <h1 style={{ fontSize: 32, fontWeight: 800 }}>Dashboard</h1>
         <p style={{ color: '#64748b' }}>Welcome to Zerra ERP Dashboard 🚀</p>
       </div>
 
@@ -129,6 +110,7 @@ function DashboardPage() {
         </p>
       </div>
 
+      {/* RENDER KOTAK STATISTIK UTAMA */}
       <div
         style={{
           display: 'grid',
@@ -168,17 +150,11 @@ function DashboardPage() {
               >
                 {item.icon}
               </div>
-             
             </div>
 
             <h3 style={{ color: '#64748b' }}>{item.title}</h3>
-            <h1
-              style={{
-                fontSize: 34,
-                margin: '8px 0 16px',
-              }}
-            >
-              {item.value}
+            <h1 style={{ fontSize: 34, margin: '8px 0 16px' }}>
+              {isDashboardLoading ? '...' : item.value}
             </h1>
             <Link
               to={item.to}
@@ -200,7 +176,7 @@ function DashboardPage() {
       </div>
 
       {/* =========================================================
-          DAFTAR EMPLOYEE - ROW LIST VERSION (MEMANJANG KE BAWAH)
+          DAFTAR EMPLOYEE - ROW LIST VERSION
           ========================================================= */}
       <div className="mt-8 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-slate-100/80 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
@@ -238,10 +214,7 @@ function DashboardPage() {
               </thead>
               <tbody className="text-slate-600 text-sm divide-y divide-slate-100 bg-white">
                 {employees.map((item: any) => (
-                  <tr 
-                    key={item.id} 
-                    className="hover:bg-slate-50/50 transition-all duration-200 group"
-                  >
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
                     <td className="px-6 py-4.5">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-emerald-50/60 group-hover:bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100/20 shadow-sm flex-shrink-0 transition-colors">
@@ -257,7 +230,6 @@ function DashboardPage() {
                         </div>
                       </div>
                     </td>
-
                     <td className="px-6 py-4.5 space-y-1 text-xs">
                       <div className="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors">
                         <Mail size={14} className="text-slate-400" />
@@ -268,7 +240,6 @@ function DashboardPage() {
                         <span>{item.phone}</span>
                       </div>
                     </td>
-
                     <td className="px-6 py-4.5">
                       <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-100">
                         <Building2 size={13} className="text-slate-400" />
@@ -277,7 +248,6 @@ function DashboardPage() {
                         </span>
                       </div>
                     </td>
-
                     <td className="px-6 py-4.5 text-center">
                       <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-xs px-2.5 py-1 rounded-lg font-bold border border-emerald-100/40 shadow-sm">
                         <ShieldCheck size={13} className="mr-0.5" />
@@ -292,6 +262,9 @@ function DashboardPage() {
         </div>
       </div>
 
+      {/* =========================================================
+          DAFTAR COMPANY
+          ========================================================= */}
       <div className="mt-8 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-slate-100/80 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
           <div className="flex flex-col gap-1">
@@ -304,17 +277,13 @@ function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="bg-cyan-50 text-cyan-600 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-cyan-100 shadow-sm">
-              {isCompanyLoading ? '...' : companies.length} Entities Active
+              {summary.company} Entities Active
             </span>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          {isCompanyLoading ? (
-            <div className="text-center py-12 text-slate-400 text-sm font-medium animate-pulse">
-              Menghubungkan ke layanan svc-quotation...
-            </div>
-          ) : companies.length === 0 ? (
+          {companies.length === 0 ? (
             <div className="text-center py-12 text-slate-400 text-sm">
               Tidak ada data perusahaan yang ditemukan di database backend.
             </div>
@@ -330,13 +299,10 @@ function DashboardPage() {
               </thead>
               <tbody className="text-slate-600 text-sm divide-y divide-slate-100 bg-white">
                 {companies.map((company: any) => (
-                  <tr 
-                    key={company.id} 
-                    className="hover:bg-slate-50/50 transition-all duration-200 group"
-                  >
+                  <tr key={company.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
                     <td className="px-6 py-4.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl border border-slate-100 bg-slate-50 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div className="w-9 h-9 rounded-xl border border-slate-100 bg-slate-50 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-sm">
                           {company.logo && company.logo.trim() !== '' ? (
                             <img src={company.logo} alt="logo" className="w-full h-full object-cover" />
                           ) : (
@@ -391,6 +357,9 @@ function DashboardPage() {
         </div>
       </div>
 
+      {/* =========================================================
+          DAFTAR BANK ACCOUNT
+          ========================================================= */}
       <div className="mt-8 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.02)] border border-slate-100/80 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
           <div className="flex flex-col gap-1">
@@ -403,7 +372,7 @@ function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="bg-sky-50 text-sky-600 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-sky-100 shadow-sm">
-              {banks.length} Accounts Connected
+              {summary.bank_account} Accounts Connected
             </span>
           </div>
         </div>
@@ -436,10 +405,7 @@ function DashboardPage() {
                 }
 
                 return (
-                  <tr 
-                    key={item.id} 
-                    className="hover:bg-slate-50/50 transition-all duration-200 group"
-                  >
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-all duration-200 group">
                     <td className="px-6 py-4.5 vertical-middle">
                       <span className={`inline-block font-extrabold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-widest border shadow-sm ${badgeStyle}`}>
                         {item.bank_name}
