@@ -194,7 +194,7 @@ function QuotationPage() {
 
 useEffect(() => {
     loadAllData()
-  }, [currentPage, searchCustomer]) // 👈 Menambahkan searchCustomer di sini
+  }, [currentPage, searchCustomer, activeTab]) // 👈 Menambahkan searchCustomer di sini
 
   const initFormDefaults = (companyId: number, emps = employees, banks = bankAccounts) => {
     setSelectedCompany(companyId)
@@ -550,16 +550,25 @@ useEffect(() => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Company Master</label>
-              <select
-                value={selectedCompany}
-                onChange={(e) => initFormDefaults(Number(e.target.value))}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
-              >
-                <option value={0}>Pilih Perusahaan Master</option>
-                {companies.map((c) => <option key={c.id} value={c.id}>{c.legal_name}</option>)}
-              </select>
-            </div>
+  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+    Company Master
+  </label>
+  <select
+    value={selectedCompany}
+    // Memanggil initFormDefaults agar saat PT diubah, karyawan & bank ikut tersaring otomatis
+    onChange={(e) => initFormDefaults(Number(e.target.value))}
+    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
+  >
+    <option value={0}>Pilih Perusahaan Master</option>
+    
+    {/* 🔥 GANTI MAP LAMA KAMU DENGAN STATE DARI DATABASE INI */}
+    {companies.map((c) => (
+      <option key={c.id} value={c.id}>
+        {c.legal_name || c.name}
+      </option>
+    ))}
+  </select>
+</div>
 
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Prepared By</label>

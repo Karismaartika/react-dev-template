@@ -9,7 +9,9 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import api, {
+// FIX 1: Import apiQuotation dari service API agar sinkron menembak server hosting online
+import {
+  apiQuotation,
   createBankAccount,
   deleteBankAccount,
   getBankAccounts,
@@ -26,7 +28,7 @@ export const Route = createFileRoute('/bank-account')({
 type Company = {
   id: number
   name: string
-  legal_name: string // Disamakan menjadi snake_case agar sinkron dengan database
+  legal_name: string
   address: string
   email: string
   phone: string
@@ -59,7 +61,7 @@ function BankAccountPage() {
     bank: '',
     accountName: '',
     accountNumber: '',
-    companyId: 0, // Di-set 0 sementara sampai data perusahaan ter-fetch
+    companyId: 0,
   })
 
   const [isEdit, setIsEdit] = useState(false)
@@ -73,8 +75,8 @@ function BankAccountPage() {
       try {
         setLoadingCompanies(true)
         
-        // FIX: Ambil seluruh daftar PT penawaran dari Live API Backend, bukan LocalStorage
-        const resCompany = await api.get('/companies')
+        // FIX 2: Tembak memakai apiQuotation + berikan limit besar agar CV Cahaya Mustika ikut ketarik
+        const resCompany = await apiQuotation.get('/companies?limit=100')
         const fetchedCompanies: Company[] = resCompany.data?.data || resCompany.data || []
         
         setCompanies(fetchedCompanies)
@@ -282,7 +284,8 @@ function BankAccountPage() {
                   ) : (
                     companies.map((company) => (
                       <option key={company.id} value={company.id}>
-                        {company.legal_name}
+                        {/* FIX 3: Tambah fallback company.legal_name || company.name agar tidak kosong blank */}
+                        {company.legal_name || company.name || `Company ID ${company.id}`}
                       </option>
                     ))
                   )}
@@ -404,6 +407,8 @@ function BankAccountPage() {
                 accounts.map((acc) => {
                   // FIX MATCHING: Membandingkan ID dengan tipe number secara aman
                   const company = companies.find((c) => Number(c.id) === Number(acc.companyId))
+                  // FIX 4: Gunakan fallback pencarian nama company di baris tabel agar tidak blank kosong
+                  const displayCompanyName = company?.legal_name || company?.name || 'Loading / Perusahaan Tidak Ditemukan'
 
                   return (
                     <tr
@@ -411,7 +416,7 @@ function BankAccountPage() {
                       className="border-t border-slate-100 hover:bg-slate-50 transition"
                     >
                       <td className="px-6 py-4 font-medium text-slate-700">
-                        {company ? company.legal_name : 'Loading / Perusahaan Tidak Ditemukan'}
+                        {displayCompanyName}
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
                         {acc.bank}

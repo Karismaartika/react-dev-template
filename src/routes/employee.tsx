@@ -12,7 +12,9 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import api, { 
+// FIX 1: Import apiQuotation secara eksplisit dari service API yang benar
+import { 
+  apiQuotation,
   createEmployee, 
   deleteEmployee, 
   getEmployees, 
@@ -29,7 +31,7 @@ export const Route = createFileRoute('/employee')({
 type Company = {
   id: number
   name: string
-  legal_name: string // Disamakan menjadi snake_case agar sesuai dengan database backend
+  legal_name: string
   address: string
   email: string
   phone: string
@@ -61,14 +63,13 @@ function EmployeePage() {
     name: '',
     email: '',
     phone: '',
-    company_id: 0, // Di-set default 0 sebelum data perusahaan ter-load
+    company_id: 0,
   })
 
   /* =========================
      EFFECT LOGIC
   ========================= */
   useEffect(() => {
-    // Memanggil fungsi sinkronisasi master data dari API backend dan lokal
     loadInitialData()
   }, [])
 
@@ -76,18 +77,18 @@ function EmployeePage() {
     try {
       setLoadingCompanies(true)
       
-      // 1. Ambil data seluruh Perusahaan (PT) langsung dari API Backend server secara Realtime
-      const resCompany = await api.get('/companies')
+      // FIX 2: Tembak menggunakan apiQuotation + beri limit besar agar CV Cahaya Mustika ketarik
+      const resCompany = await apiQuotation.get('/companies?limit=100')
       const fetchedCompanies: Company[] = resCompany.data?.data || resCompany.data || []
       
       setCompanies(fetchedCompanies)
 
-      // 2. Set default company_id di form jika data perusahaan tersedia
+      // Set default company_id di form jika data perusahaan tersedia
       if (fetchedCompanies.length > 0) {
         setForm((prev) => ({ ...prev, company_id: fetchedCompanies[0].id }))
       }
     } catch (error) {
-      console.error('Gagal mengambil data master kumpuan PT dari API:', error)
+      console.error('Gagal mengambil data master kumpulan PT dari API:', error)
       
       // Fallback jika API bermasalah, baca dari localStorage
       const savedCompanies = localStorage.getItem('companies')
@@ -102,7 +103,7 @@ function EmployeePage() {
       setLoadingCompanies(false)
     }
 
-    // 3. Ambil data karyawan dari database
+    // Ambil data karyawan dari database
     await loadEmployees()
   }
 
@@ -150,7 +151,7 @@ function EmployeePage() {
     e.preventDefault()
 
     if (!form.name || !form.email || !form.phone || Number(form.company_id) === 0) {
-      alert('Semua field termasuk pilihan PT wajib diisi!')
+      alert('Semua field termasuk pilihan PT/CV wajib diisi!')
       return
     }
 
@@ -283,71 +284,74 @@ function EmployeePage() {
               </thead>
 
               <tbody>
-                {filteredData.map((emp) => (
-                  <tr
-                    key={emp.id}
-                    className="border-b border-slate-100 hover:bg-slate-50 transition-all"
-                  >
-                    {/* EMPLOYEE */}
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center">
-                          <Users className="text-sky-600" size={20} />
-                        </div>
-                        <div>
-                          <h2 className="font-bold text-slate-800">
-                            {emp.name}
-                          </h2>
-                          <p className="text-sm text-slate-500">EMP-{emp.id}</p>
-                        </div>
-                      </div>
-                    </td>
+                {filteredData.map((emp) => {
+                  // FIX 3: Pasang fallback pencarian nama company di tabel agar tidak crash / blank
+                  const matchedCompany = companies.find((c) => Number(c.id) === Number(emp.company_id))
+                  const displayName = matchedCompany?.legal_name || matchedCompany?.name || 'Unknown Company'
 
-                    {/* CONTACT */}
-                    <td className="px-6 py-5">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Mail size={15} />
-                          {emp.email}
+                  return (
+                    <tr
+                      key={emp.id}
+                      className="border-b border-slate-100 hover:bg-slate-50 transition-all"
+                    >
+                      {/* EMPLOYEE */}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-sky-100 flex items-center justify-center">
+                            <Users className="text-sky-600" size={20} />
+                          </div>
+                          <div>
+                            <h2 className="font-bold text-slate-800">
+                              {emp.name}
+                            </h2>
+                            <p className="text-sm text-slate-500">EMP-{emp.id}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <Phone size={15} />
-                          {emp.phone}
+                      </td>
+
+                      {/* CONTACT */}
+                      <td className="px-6 py-5">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Mail size={15} />
+                            {emp.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Phone size={15} />
+                            {emp.phone}
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* COMPANY */}
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-slate-700 font-medium">
-                        <Building2 size={16} />
-                        {
-                          companies.find((c) => Number(c.id) === Number(emp.company_id))
-                            ?.legal_name || 'Unknown Company'
-                        }
-                      </div>
-                    </td>
+                      {/* COMPANY */}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2 text-slate-700 font-medium">
+                          <Building2 size={16} />
+                          {displayName}
+                        </div>
+                      </td>
 
-                    {/* ACTION */}
-                    <td className="px-6 py-5">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(emp)}
-                          className="p-2 rounded-xl bg-amber-100 text-amber-600 hover:scale-105 transition-all"
-                        >
-                          <Pencil size={18} />
-                        </button>
+                      {/* ACTION */}
+                      <td className="px-6 py-5">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => handleEdit(emp)}
+                            className="p-2 rounded-xl bg-amber-100 text-amber-600 hover:scale-105 transition-all"
+                          >
+                            <Pencil size={18} />
+                          </button>
 
-                        <button
-                          onClick={() => handleDelete(emp.id)}
-                          className="p-2 rounded-xl bg-red-100 text-red-600 hover:scale-105 transition-all"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            onClick={() => handleDelete(emp.id)}
+                            className="p-2 rounded-xl bg-red-100 text-red-600 hover:scale-105 transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -436,13 +440,14 @@ function EmployeePage() {
                   className="w-full mt-2 px-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-sky-500"
                 >
                   {loadingCompanies ? (
-                    <option>Loading seluruh daftar PT...</option>
+                    <option>Loading seluruh daftar PT/CV...</option>
                   ) : companies.length === 0 ? (
-                    <option value={0}>Tidak ada PT terdaftar di basis data</option>
+                    <option value={0}>Tidak ada PT/CV terdaftar di basis data</option>
                   ) : (
                     companies.map((company) => (
                       <option key={company.id} value={company.id}>
-                        {company.legal_name}
+                        {/* FIX 4: Gunakan fallback company.legal_name || company.name agar tidak blank kosong */}
+                        {company.legal_name || company.name || `Company ID ${company.id}`}
                       </option>
                     ))
                   )}
