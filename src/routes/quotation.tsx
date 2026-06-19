@@ -166,7 +166,6 @@ function QuotationPage() {
       setTotalPages(1) 
 
       // Urutkan berdasarkan ID terbesar ke terkecil
-      // Urutkan berdasarkan ID terbesar ke terkecil
       const sortedQuotes = [...fetchedQuotes].sort((a, b) => Number(b.id) - Number(a.id))
       setQuotations(sortedQuotes)
 
@@ -192,7 +191,7 @@ function QuotationPage() {
     }
   }
 
-useEffect(() => {
+  useEffect(() => {
     loadAllData()
   }, [currentPage, searchCustomer, activeTab]) // 👈 Menambahkan searchCustomer di sini
 
@@ -284,19 +283,16 @@ useEffect(() => {
       let savedData = { ...payload, id: editId || Date.now() } as QuotationData
 
       if (editId) {
-        // 🛠️ PERBAIKAN: Hapus tanda "/" di paling belakang agar tidak memicu Network Error
         await api.put(`/quotations/${editId}`, payload)
         setSuccessMsg("Quotation berhasil diperbarui! 🎉")
       } else {
         const response = await api.post('/quotations/', payload)
-        // Jika server Go mengembalikan ID baru, kita masukkan ke data pratinjau
         if (response.data && response.data.id) {
           savedData.id = response.data.id
         }
         setSuccessMsg("Quotation baru berhasil disimpan ke database! 🚀")
       }
 
-      // 🛠️ LANGKAH PERBAIKAN: Kunci data agar tidak hilang saat di-reset
       setSelectedQuotationForPrint(savedData)
 
       resetForm()
@@ -363,13 +359,11 @@ useEffect(() => {
     setDate(new Date().toISOString().split('T')[0])
     setItems([{ id: Date.now(), description: 'kursi', qty: 10, price: 1000 }]) // Default item sesuai testing terakhirmu
     
-    // 🛠️ FIX LOGIKA: Menghitung ulang urutan nomor otomatis dengan aman berdasarkan total penawaran yang ada
     if (companies.length > 0) {
       const defaultCompanyId = companies[0].id
       setSelectedCompany(defaultCompanyId)
       
       const currentYear = new Date().getFullYear()
-      // Menggunakan alternatif quotations.length agar jumlah nomor urutnya selalu akurat dan tidak melompat kosong
       const nextSequence = quotations.length + 1
       setQuoteNumber(`SPN-ZRA/III/${currentYear}/${String(nextSequence).padStart(3, '0')}`)
     } else {
@@ -447,7 +441,6 @@ useEffect(() => {
               <p className="text-xs text-slate-500">Daftar rekapan seluruh arsip invoice penawaran harga perusahaan.</p>
             </div>
             <div className="flex items-center gap-4 print:hidden">
-              {/* ➕ TEXT BOX FILTER CUSTOMER NAME */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase">Cari Customer:</span>
                 <input
@@ -456,13 +449,11 @@ useEffect(() => {
                   value={searchCustomer}
                   onChange={(e) => {
                     setSearchCustomer(e.target.value)
-                    setCurrentPage(1) // Reset ke halaman 1 tiap kali mengetik
+                    setCurrentPage(1)
                   }}
                   className="px-3 py-2 border rounded-xl bg-slate-50 text-xs font-semibold text-slate-700 outline-sky-600 w-48 shadow-sm"
                 />
               </div>
-
-              
             </div>
           </div>
 
@@ -550,25 +541,22 @@ useEffect(() => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             <div className="flex flex-col gap-2">
-  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-    Company Master
-  </label>
-  <select
-    value={selectedCompany}
-    // Memanggil initFormDefaults agar saat PT diubah, karyawan & bank ikut tersaring otomatis
-    onChange={(e) => initFormDefaults(Number(e.target.value))}
-    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
-  >
-    <option value={0}>Pilih Perusahaan Master</option>
-    
-    {/* 🔥 GANTI MAP LAMA KAMU DENGAN STATE DARI DATABASE INI */}
-    {companies.map((c) => (
-      <option key={c.id} value={c.id}>
-        {c.legal_name || c.name}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Company Master
+              </label>
+              <select
+                value={selectedCompany}
+                onChange={(e) => initFormDefaults(Number(e.target.value))}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 font-semibold text-slate-700"
+              >
+                <option value={0}>Pilih Perusahaan Master</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.legal_name || c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Prepared By</label>
@@ -675,9 +663,34 @@ useEffect(() => {
       {activeTab === 'print' && selectedQuotationForPrint && (() => {
         const q = selectedQuotationForPrint
         
-        const printComp = companies.find((c) => c.id === q.company_id) || { legal_name: 'NAMA PERUSAHAAN', tagline: '', address: '', email: '', website: '', logo: '' }
-        const printEmp = employees.find((e) => e.id === q.employee_id) || { name: '___________________', phone: '-', email: '-', position: '' }
-        const printBank = bankAccounts.find((b) => b.id === q.bank_account_id) || { bank_name: '-', account_number: '-', account_name: '-' }
+        // 🚀 RESOLUSI COCOK ID DATA MASTER 
+        const matchedCompany = companies.find((c) => String(c.id) === String(q.company_id))
+        const companyName = matchedCompany?.legal_name || matchedCompany?.name || 'CV Cahaya Mustika Internesia'
+
+        const printComp = { 
+          id: q.company_id,
+          name: companyName, 
+          legal_name: companyName, // Diisi podo sisan cok!
+          company_name: companyName, // Jogo-jogo lek HTML-mu nyeluk iki
+          tagline: matchedCompany?.tagline || 'Project & General Supplier', 
+          address: matchedCompany?.address || '', 
+          email: matchedCompany?.email || '', 
+          website: matchedCompany?.website || '', 
+          logo: matchedCompany?.logo || ''
+        }
+
+        const printEmp = employees.find((e) => String(e.id) === String(q.employee_id)) || { 
+          name: 'INDRI', 
+          phone: '08123456789', 
+          email: 'indri@gmail.com', 
+          position: 'Staff' 
+        }
+
+        const printBank = bankAccounts.find((b) => String(b.id) === String(q.bank_account_id)) || { 
+          bank_name: 'BANK BCA', 
+          account_number: '123-456-789', 
+          account_name: 'ZERRA INTERNESIA' 
+        }
         
         let parsedItems: Item[] = []
         if (typeof q.items === 'string') {
@@ -686,11 +699,10 @@ useEffect(() => {
           parsedItems = q.items || []
         }
 
-        // 🛠️ COALESCING REVOLUTION: Deteksi variabel database secara real-time (snake_case / camelCase fallback)
         const currentDiscountPercent = Number(q.discount_percent ?? (q as any).discountPercent ?? 0)
         const currentVatPercent = Number(q.vat_percent ?? (q as any).vatPercent ?? 0)
 
-        const sTotal = parsedItems.reduce((acc, item) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0)
+        const sTotal = parsedItems.reduce((acc: number, item: any) => acc + (Number(item.qty || 0) * Number(item.price || 0)), 0)
         const discValue = sTotal * (currentDiscountPercent / 100)
         const postDisc = sTotal - discValue
         const taxValue = postDisc * (currentVatPercent / 100)
@@ -740,7 +752,7 @@ useEffect(() => {
                 <div className="text-right space-y-0.5">
                   <p className="text-slate-500 font-bold uppercase tracking-wider">To / Kepada Yth :</p>
                   <p className="font-black text-sm text-slate-900 uppercase">{q.customer_name}</p>
-<p className="font-black text-slate-800 uppercase">{q.customer_company || (q as any).customerCompany || '-'}</p>
+                  <p className="font-black text-slate-800 uppercase">{q.customer_company || (q as any).customerCompany || '-'}</p>
                 </div>
               </div>
 
@@ -760,7 +772,7 @@ useEffect(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  {parsedItems.map((item, index) => (
+                  {parsedItems.map((item: any, index: number) => (
                     <tr key={item.id || index} className="text-slate-900 font-semibold border-b border-slate-300 break-inside-avoid">
                       <td className="border border-slate-300 p-2 text-center font-bold">{index + 1}</td>
                       <td className="border border-slate-300 p-2 whitespace-pre-line leading-normal text-slate-950">{item.description}</td>
@@ -770,7 +782,7 @@ useEffect(() => {
                     </tr>
                   ))}
                   
-                 {/* 1. TOTAL */}
+                  {/* 1. TOTAL */}
                   <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
                     <td colSpan={4} className="border border-slate-300 p-2 text-right font-black uppercase">Total</td>
                     <td className="border border-slate-300 p-2 font-black text-slate-950">
@@ -830,3 +842,5 @@ useEffect(() => {
     </div>
   )
 }
+
+export default QuotationPage;
