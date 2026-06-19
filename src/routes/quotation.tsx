@@ -670,9 +670,9 @@ function QuotationPage() {
         const printComp = { 
           id: q.company_id,
           name: companyName, 
-          legal_name: companyName, // Diisi podo sisan cok!
-          company_name: companyName, // Jogo-jogo lek HTML-mu nyeluk iki
-          tagline: matchedCompany?.tagline || 'Project & General Supplier', 
+          legal_name: companyName, 
+          company_name: companyName, 
+          tagline: matchedCompany?.tagline || '', 
           address: matchedCompany?.address || '', 
           email: matchedCompany?.email || '', 
           website: matchedCompany?.website || '', 
